@@ -303,7 +303,7 @@ upgrade_finish_callback(struct upgrade_server_info server)
     if (server.upgrade_flag == TRUE) {
         CLING_DEBUG("upgrade successfully reboot now\n");
 		//os_delay_us(200000000);
-        //system_upgrade_reboot();
+        system_upgrade_reboot();
     } else {
 
         CLING_DEBUG("upgrade failed\n");

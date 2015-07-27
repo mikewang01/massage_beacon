@@ -175,8 +175,8 @@ delete_cling_uart(CLASS(cling_uart) *arg)
   //  ETS_UART_INTR_DISABLE();
     /*disarm poll timer*/
     os_timer_disarm(&(private_data->uart_timer));
-    free(private_data);
-    free(arg);
+    os_free(private_data);
+    os_free(arg);
 	this = NULL;
     return TRUE;
 
@@ -267,7 +267,7 @@ cling_data_recieved_poll(CLASS(cling_uart) *arg)
 
             } else {
                 /*release cmd data ,because there is no task  gonna accept and release this message*/
-                free(i->ppayload);
+                os_free(i->ppayload);
             }
 
         } else if (i->lenth == sizeof(struct cling_health_rev)) {
@@ -280,13 +280,13 @@ cling_data_recieved_poll(CLASS(cling_uart) *arg)
 
             } else {
                 /*release cmd data ,because there is no task  gonna accept and release this message*/
-                free(i->ppayload);
+                os_free(i->ppayload);
             }
 
 
         }
         /*release data object transmitted from mac layer*/
-        free(i);
+        os_free(i);
 #else
         if (i->lenth == CLING_ID_LENTH + CLING_MAC_LENTH + CLING_RSSI_LENTH) {
 

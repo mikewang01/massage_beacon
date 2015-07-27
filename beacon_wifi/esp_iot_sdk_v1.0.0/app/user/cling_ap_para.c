@@ -133,8 +133,9 @@ cling_load_ap_param()
     spi_flash_read((CLING_PARAM_START_SEC + CLING_PARAM_AP) * SPI_FLASH_SEC_SIZE,
                    (uint32 *)&config, sizeof(struct station_config));
 #endif
+	CLING_DEBUG("config.ssid[0]= %02x\r\n", config.ssid[0]);
 	/*this means there is a ap parameter stored in flash*/
-	if ('0'<=config.ssid[0]<='9' && 'a'<=config.ssid[0]<='z' && 'A'<=config.ssid[0]<='Z'){
+	if (config.ssid[0] <= '~' && config.ssid[0] >= '!'){
 			sta_conf = (struct station_config *)os_malloc(sizeof(struct station_config));
 			if (NULL != sta_conf){
 			*sta_conf = config;

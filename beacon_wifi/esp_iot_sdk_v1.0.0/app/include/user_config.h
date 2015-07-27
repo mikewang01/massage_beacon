@@ -21,7 +21,9 @@
 
 
 #if   	POSITION_DEVICE
+
 #define LOCATION_DEEP_SLEEP_TIME   10000000
+
 #endif
 
 
@@ -31,10 +33,15 @@
 #define HICLING_TIME_PATH "/time"
 #define HICLING_SERVER_PORT 8086
 #else
+	
+/*internet related config*/
+#define HICLING_DOMAIN	"101.231.188.66"
+#define HICLING_TIME_PATH "/time"
+#define HICLING_HEALTH_PATH "/data/day"
+#define HICLING_SERVER_PORT 9992//8086
+#define INTERNET_TIMEOUT  1000 //ms
 
-
-
-
+#define HICLING_IP		  101,231,188,66
 
 #endif
 
