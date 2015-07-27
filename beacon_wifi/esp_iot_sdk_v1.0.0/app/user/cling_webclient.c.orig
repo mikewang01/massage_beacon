@@ -1,0 +1,822 @@
+/******************************************************************************
+ * Copyright 2013-2014 Espressif Systems (Wuxi)
+ *
+ * FileName: user_webserver.c
+ *
+ * Description: The web server mode configration.
+ *              Check your hardware connection with the host while use this mode.
+ * Modification history:
+ *     2014/3/12, v1.0 create this file.
+*******************************************************************************/
+#include "ets_sys.h"
+#include "os_type.h"
+#include "osapi.h"
+#include "mem.h"
+#include "user_interface.h"
+#include "Hmac_sha1.h"
+#include "task_signal.h"
+#include "time_sync_json.h"
+#include "sys_timestamp_mgr.h"
+#include "cling_upload_json.h"
+
+
+#include "user_iot_version.h"
+#include "espconn.h"
+#include "user_json.h"
+#include "user_esp_platform.h"
+#include "user_webclient.h"
+#include "user_json.h"
+#include "driver/uart.h"
+
+#include "uart_protocol/uart_protocol_cmd.h"
+#include "cling_fifo.h"
+#include "cling_ap_para.h"
+#include  "io_assignment.h"
+#include "gpio.h"
+#include "cling_healthdata_json.h"
+
+#include "upgrade.h"
+#if ESP_PLATFORM
+#include "user_esp_platform.h"
+#endif
+
+
+/*********************************************************************
+* MACROS
+*/
+
+#define  TRIGGER_TIMESTAMP_SENDING(x) x.json_state_bits.timestamp_json_wait_for_sending = TRUE
+#define  TRIGGER_LOCATION_SENDING(x)  x.json_state_bits.cling_location_json_wait_for_sending = TRUE
+#define  TRIGGER_HEALTH_SENDING(x)    x.json_state_bits.cling_health_json_wait_for_sending = TRUE
+
+/*used to identify if there is any json need to be sended*/
+#define  IS_JSON_WAITING_FOR_SENDING(x)  	  x.json_state
+#define  IS_TIMESTAMP_WAITING_FOR_SENDING(x)  x.json_state_bits.timestamp_json_wait_for_sending == TRUE
+#define  IS_LOCATION_WAITING_FOR_SENDING(x)   x.json_state_bits.cling_location_json_wait_for_sending == TRUE
+#define  IS_HEALTH_WAITING_FOR_SENDING(x)    x.json_state_bits.cling_health_json_wait_for_sending == TRUE
+
+#define  TIMESTAMP_SENDING_FINISHED(x)  x.json_state_bits.timestamp_json_wait_for_sending = FALSE
+#define  LOCATION_SENDING_FINISHED(x)   x.json_state_bits.cling_location_json_wait_for_sending = FALSE
+#define  HEALTH_SENDING_FINISHED(x)     x.json_state_bits.cling_health_json_wait_for_sending = FALSE
+
+/*initiate json startup state*/
+#define  FIFO_JSON_STATE_INITIATE(x)	x.json_state = FALSE
+
+
+#define TANSFER_ENDIAN_16(X)                 ((((uint16)(X) & 0xff00) >> 8) |(((uint16)(X) & 0x00ff) << 8))
+#define TANSFER_ENDIAN_32(X)                 ((((uint32)(X) & 0xff000000) >> 24) | \
+                                                            (((uint32)(X) & 0x00ff0000) >> 8) | \
+                                                            (((uint32)(X) & 0x0000ff00) << 8) | \
+                                                            (((uint32)(X) & 0x000000ff) << 24))
+
+/*********************************************************************
+* TYPEDEFS
+*/
+struct json_send_buffer {
+    char *pbuffer;
+	uint32 time_stamp;
+    size_t lenth;
+};
+
+/*used to syc the state to send coressoned json string*/
+union fifo_json_state {
+    uint8 json_state;
+    struct {
+        char timestamp_json_wait_for_sending:1;
+        char cling_location_json_wait_for_sending:1;
+        char cling_health_json_wait_for_sending:1;
+    } json_state_bits;
+
+};
+
+/*********************************************************************
+* GLOBAL VARIABLES
+*/
+
+
+/*********************************************************************
+* LOCAL VARIABLES
+*/
+LOCAL CLASS(http_service) *http_obj = NULL;/*http service layer object*/
+LOCAL struct station_config *sta_conf = NULL;
+LOCAL struct softap_config *ap_conf = NULL;
+LOCAL CLASS(hmac_sha1) *signature_obj;
+LOCAL CLASS(timestamp_json) *ts_req_obj = NULL;
+LOCAL CLASS(sys_timestamp)  *timestamp_mgr_obj = NULL;
+LOCAL CLASS(cling_uart)  *cling_uart_obj = NULL;
+LOCAL CLASS(cling_inf_upload)  *cling_upload_json_obj = NULL;
+LOCAL CLASS(cling_health_data) *health_data_obj = NULL;
+
+
+LOCAL bool time_flag = 0;
+LOCAL struct station_config station_conf;
+LOCAL os_timer_t fota_led_timer;
+
+
+
+
+CREAT_CLING_FIFO(http_json_send_fifo, struct json_send_buffer, 9);
+CREAT_CLING_FIFO(health_json_send_fifo, struct json_send_buffer, 6);
+
+LOCAL CLASS(cling_ap_para) *smart_config_obj = NULL;
+
+LOCAL os_timer_t  location_fifo_checkout_timer;
+LOCAL os_timer_t  health_fifo_checkout_timer;
+LOCAL union fifo_json_state  fifo_json_state = {FALSE};
+
+
+LOCAL void location_fifo_timer_start(void);
+LOCAL void health_fifo_timer_start(void);
+LOCAL void web_client_timer_stop(void);
+LOCAL void health_fifo_timer_reset(void);
+LOCAL void location_fifo_timer_reset(void);
+
+LOCAL void cling_client_connect_to_server(CLASS(http_service) *http_obj);
+LOCAL void cling_connect_start_callback();
+
+
+
+/******************************************************************************
+ * FunctionName : cling_data_flow_led_related
+ * Description  : control the output of smartconfig led
+ * Parameters   : level : output level of pin
+ * Returns      : none
+*******************************************************************************/
+LOCAL void ICACHE_FLASH_ATTR
+cling_data_flow_led_output(uint8 level)
+{
+    GPIO_OUTPUT_SET(GPIO_ID_PIN(CLING_DATA_FLOW_LED_IO_NUM), level);
+}
+
+
+LOCAL void ICACHE_FLASH_ATTR
+cling_data_flow_led_trigger(void)
+{
+    /*USED TO TOGGLE LED STATE*/
+    LOCAL uint8 link_led_level = 0;
+    link_led_level = (~link_led_level) & 0x01;
+    GPIO_OUTPUT_SET(GPIO_ID_PIN(CLING_DATA_FLOW_LED_IO_NUM), link_led_level);
+
+}
+LOCAL void ICACHE_FLASH_ATTR
+cling_data_flow_led_set(uint8 led_state)
+{
+
+    led_state = (led_state) & 0x01;
+    GPIO_OUTPUT_SET(GPIO_ID_PIN(CLING_DATA_FLOW_LED_IO_NUM), led_state);
+
+}
+
+
+LOCAL void ICACHE_FLASH_ATTR
+cling_data_flow_led_init(void)
+{
+    PIN_FUNC_SELECT(CLING_DATA_FLOW_LED_IO_MUX, CLING_DATA_FLOW_LED_IO_FUNC);
+    GPIO_OUTPUT_SET(GPIO_ID_PIN(CLING_DATA_FLOW_LED_IO_NUM), !CLING_DATA_FLOW_LED_ACTIVE_LEVEL);
+}
+
+LOCAL void ICACHE_FLASH_ATTR
+cling_data_flow_led_stop(void)
+{
+    CLING_DEBUG("fota led bink stop\n");
+    os_timer_disarm(&fota_led_timer);
+
+    GPIO_OUTPUT_SET(GPIO_ID_PIN(CLING_DATA_FLOW_LED_IO_NUM), !CLING_DATA_FLOW_LED_ACTIVE_LEVEL);
+}
+
+
+/******************************************************************************
+ * FunctionName : cling_reset_callback
+ * Description  : this is called when station with ap state changed
+ * Parameters   : state -- http state
+ * Returns      : none
+*******************************************************************************/
+LOCAL void ICACHE_FLASH_ATTR
+cling_reset_callback(uint8 state)
+{
+    /*lose connection with ap*/
+    if(state != STATION_GOT_IP) {
+        cling_uart_obj->disable_recieving(cling_uart_obj);
+        time_flag = 0;
+        /*notice misc task the information of connecting to ap*/
+        system_os_post(WEB_CLIIENT_TASK_ID,  IPC_EVENT(EVENT_RESET), 0);
+    }
+
+}
+
+/******************************************************************************
+ * FunctionName : user_task_data_process
+ * Description  : process the data posted to this task
+ * Parameters   : port -- server port
+ * Returns      : none
+*******************************************************************************/
+LOCAL void ICACHE_FLASH_ATTR
+ipc_event_process(os_event_t *e)
+{
+
+    char send_buffer[jsonSize];
+    switch (GET_EVENT_TYPE(e->sig)) {
+
+    case EVENT_INIT:
+        CLING_DEBUG("task http start\n");
+        struct station_config *p =  ( struct station_config*)(e->par);
+        station_conf = *p;
+        os_free(p);
+        /*once thread start ,delete smart config object first*/
+        NEW(http_obj, http_service);
+        http_obj->msgrev_task_register(http_obj, MISC_TASK_ID, WEB_CLIIENT_TASK_ID, WEB_CLIIENT_TASK_ID);
+        http_obj->set_reset_callback(http_obj, cling_reset_callback);
+        http_obj->set_start_connect_to_server_callback(http_obj, cling_connect_start_callback);
+
+        /*create time stamp object*/
+        NEW(timestamp_mgr_obj, sys_timestamp);
+        /*register task to timestamp object to recieve message*/
+        timestamp_mgr_obj->msgrev_register(timestamp_mgr_obj, WEB_CLIIENT_TASK_ID);
+        /*register task to cling uart to recieve message */
+        cling_uart_obj->task_register(cling_uart_obj, WEB_CLIIENT_TASK_ID);
+        CLING_DEBUG("ssid= %s password = %s \n",station_conf.ssid ,station_conf.password);
+        http_obj->config(http_obj, station_conf.ssid, station_conf.password);
+        CLING_DEBUG("connect to ap\n");
+
+        cling_data_flow_led_init();
+        TRIGGER_TIMESTAMP_SENDING(fifo_json_state);
+        http_obj->connect_ap(http_obj);
+
+        break;
+    case EVENT_RESET:
+        CLING_DEBUG("ipc reset event recieved\n");
+        CLING_DEBUG("connect to ap\n");
+        http_obj->connect_ap(http_obj);
+        break;
+    case EVENT_OBJECT_RESET:
+        CLING_DEBUG(" webclient ipc_event_process EVENT_OBJECT_RESET\n");
+        web_client_timer_stop();
+        cling_uart_obj->disable_recieving(cling_uart_obj);
+
+        break;
+    default:
+        break;
+
+    }
+
+}
+
+
+/******************************************************************************
+ * FunctionName : user_task_data_process
+ * Description  : process the data posted to this task
+ * Parameters   : port -- server port
+ * Returns      : none
+*******************************************************************************/
+
+LOCAL void ICACHE_FLASH_ATTR
+http_event_process(os_event_t *e)
+{
+
+    char send_buffer[jsonSize];
+    switch (GET_EVENT_TYPE(e->sig)) {
+
+    case EVENT_SERVER_CONNECTED:
+        CLING_DEBUG("EVENT_SERV ER_CONNECTED fifo_json_state = %d\n",fifo_json_state.json_state);
+
+        /*if there are any json string need to exchanging with server*/
+        if (IS_JSON_WAITING_FOR_SENDING(fifo_json_state)) {
+            /*time stamp need to be updatedA from server*/
+            if (IS_TIMESTAMP_WAITING_FOR_SENDING(fifo_json_state)) {
+                /*notice misc task the information of connecting to ap*/
+                system_os_post(MISC_TASK_ID,  IPC_EVENT(EVENT_AP_CONNECTED), 0);
+                /*get josn resuest text*/
+                NEW(ts_req_obj, timestamp_json);
+                ts_req_obj->get_request_js(ts_req_obj, send_buffer);
+                DELETE(ts_req_obj, timestamp_json);
+                /*send jaon text*/
+                http_obj->send(http_obj, send_buffer, os_strlen(send_buffer));
+                TIMESTAMP_SENDING_FINISHED(fifo_json_state);
+
+
+            } else if (IS_LOCATION_WAITING_FOR_SENDING(fifo_json_state)) {
+                struct json_send_buffer i[7] = {0};
+                uint8 n = 0, m = 0;
+                char *p;
+                uint16 lenth =0;
+                uint32 k = 0;
+#if 1
+                /*if fifo is full upload the data*/
+                CLING_FIFO_OUT(http_json_send_fifo, (i + 0), struct json_send_buffer);
+                NEW(cling_upload_json_obj, cling_inf_upload);
+                timestamp_mgr_obj->get_current_timestamp(timestamp_mgr_obj, &k);
+
+                while (i->pbuffer != NULL) {
+                    struct cling_inf_rev *pbuffer = (struct cling_inf_rev *)i->pbuffer;
+                    cling_upload_json_obj->set_cling_inf(cling_upload_json_obj, pbuffer->cling_id, pbuffer->cling_mac, pbuffer->cling_rssi[0], k);
+                    /*recollect ram source*/
+                    os_free(i->pbuffer);
+                    CLING_FIFO_OUT(http_json_send_fifo, (i), struct json_send_buffer);
+                    CLING_DEBUG("package the data\n");
+                }                                
+
+                /*get json data from cling_upload_json_obj object*/
+                cling_upload_json_obj->get_request_js(cling_upload_json_obj, send_buffer);
+                DELETE(cling_upload_json_obj, cling_inf_upload);
+                /*reset the timer to recollect fifo state*/
+                location_fifo_timer_reset();
+                http_obj->send(http_obj, send_buffer, os_strlen(send_buffer));
+                cling_uart_obj->enable_recieving(cling_uart_obj);
+
+                cling_data_flow_led_set(CLING_DATA_FLOW_LED_ACTIVE_LEVEL);
+
+#endif
+                LOCATION_SENDING_FINISHED(fifo_json_state);
+            } else if (IS_HEALTH_WAITING_FOR_SENDING(fifo_json_state)) {
+                struct health_data_inf a = {0};
+                struct json_send_buffer i[7] = {0};
+                uint8 n = 0, m = 0;
+                char *p;
+                uint16 lenth =0;
+                uint32 k = 0;
+#if 1
+                /*if fifo is full upload the data*/
+                CLING_FIFO_OUT(health_json_send_fifo, (i + 0), struct json_send_buffer);
+                timestamp_mgr_obj->get_current_timestamp(timestamp_mgr_obj, &k);
+
+
+                NEW(health_data_obj, cling_health_data);
+
+                while (i->pbuffer != NULL) {
+                    struct cling_health_rev *pbuffer = (struct cling_health_rev *)i->pbuffer;
+					a.date = pbuffer->date;
+                    a.total_steps = TANSFER_ENDIAN_16(pbuffer->steps);
+                    a.total_distance = TANSFER_ENDIAN_16(pbuffer->distance);
+                    a.calories_total = TANSFER_ENDIAN_16(pbuffer->calories);
+                    a.sleep_total = TANSFER_ENDIAN_16(pbuffer->sleep_time);
+                    a.heart_rate = pbuffer->heart_rate;
+                    a.skin_temp = pbuffer->skin_temp;
+					a.beacon_timestamp = i->time_stamp;
+                    //cling_upload_json_obj->set_cling_inf(cling_upload_json_obj, pbuffer->cling_id, pbuffer->cling_mac, pbuffer->cling_rssi[0], k);
+                    health_data_obj->set_health_inf(health_data_obj,a, "ECIG", pbuffer->cling_mac, k);
+                    /*recollect ram source*/
+                    os_free(i->pbuffer);
+                    CLING_FIFO_OUT(health_json_send_fifo, (i), struct json_send_buffer);
+                    CLING_DEBUG("package health data\n");
+                }
+
+                health_data_obj->get_request_js(health_data_obj,  send_buffer);
+                DELETE(health_data_obj, cling_health_data);
+                health_fifo_timer_reset();
+                http_obj->send(http_obj, send_buffer, os_strlen(send_buffer));
+                cling_uart_obj->enable_recieving(cling_uart_obj);
+                /*trigger the data flow led*/
+                cling_data_flow_led_set(CLING_DATA_FLOW_LED_ACTIVE_LEVEL);
+                /*change the state of fifo*/
+                HEALTH_SENDING_FINISHED(fifo_json_state);
+#endif
+            }
+
+
+        }
+
+
+        break;
+
+    case EVENT_SERVER_RECIEVED: {
+        uint32 i,m;
+        char *pbuffer  = (char*)(e->par);
+
+        CLING_DEBUG("EVENT_SERVER_RECIEVED!!\n");
+        cling_data_flow_led_set(!CLING_DATA_FLOW_LED_ACTIVE_LEVEL);
+
+        CLING_DEBUG("json data = %s\n",(char*)(e->par));
+        
+            /*parse json text recievd from server*/
+            NEW(ts_req_obj, timestamp_json);
+            ts_req_obj->get_timestamp_js(ts_req_obj, &i, pbuffer);
+            CLING_DEBUG("delete object ts_req_obj\n");
+            /*delete timestamp_json object*/
+            DELETE(ts_req_obj, timestamp_json);
+
+#if 1
+            timestamp_mgr_obj->get_current_timestamp(timestamp_mgr_obj, &m);
+
+            CLING_DEBUG("time_stamp_rtc = %d\n", m);
+#endif
+            timestamp_mgr_obj->set_current_timestamp(timestamp_mgr_obj, i);
+#if 1
+
+            CLING_DEBUG("time_stamp_from_server = %d\n", i);
+			if (time_flag == 0) {
+
+            time_flag = 1;
+
+
+            /*once get synced with server about*/
+            location_fifo_timer_start();
+            health_fifo_timer_start();
+
+            cling_uart_obj->enable_recieving(cling_uart_obj);
+
+        }
+#if 0
+        /*if there is still any data need to be sended*/
+        if (IS_JSON_WAITING_FOR_SENDING(fifo_json_state)) {
+
+
+        }
+#endif
+#endif
+        os_free(pbuffer);
+        //http_obj->sleep(http_obj);
+    }
+    break;
+    default:
+        break;
+
+
+
+    }
+
+}
+/******************************************************************************
+ * FunctionName : timestamp_event_process
+ * Description  : process the data posted to this task
+ * Parameters   : os_event_t *e : event recieved
+ * Returns      : none
+*******************************************************************************/
+
+LOCAL void ICACHE_FLASH_ATTR
+timestamp_event_process(os_event_t *e)
+{
+
+    char send_buffer[jsonSize];
+    switch (GET_EVENT_TYPE(e->sig)) {
+
+        /*outofdate event*/
+    case EVENT_TIMESTAMP_OUTOFDATE: {
+#if 0
+        uint32 i = 0;
+        timestamp_mgr_obj->get_current_timestamp(timestamp_mgr_obj, &i);
+        CLING_DEBUG("time_stamp = %d\n", i);
+        CLING_DEBUG("EVENT_TIMESTAMP_OUTOFDATE message recieved\n");
+        timestamp_mgr_obj->save_timestamp_to_flash(timestamp_mgr_obj);
+#endif
+        //system_os_post(MISC_TASK_ID, IPC_EVENT(EVENT_FOTA_START), 0);
+        CLING_DEBUG("time stamp outofdate\n");
+        //time_flag = 0;
+        //http_obj->connect_ap(http_obj);
+        //http_obj->sleep(http_obj);
+    }
+    break;
+    default:
+        break;
+
+
+
+    }
+
+}
+/******************************************************************************
+ * FunctionName : uart_event_process
+ * Description  : process the data realted to uart posted to this task
+ * Parameters   : os_event_t *e : event recieved
+ * Returns      : none
+*******************************************************************************/
+
+LOCAL void ICACHE_FLASH_ATTR
+uart_event_process(os_event_t *e)
+{
+
+    char send_buffer[jsonSize];
+    switch (GET_EVENT_TYPE(e->sig)) {
+
+        /*outofdate event*/
+    case EVENT_UART_RX_LOCATION: {
+
+        struct cling_inf_rev *pbuffer = (struct cling_inf_rev*)(e->par);
+        /*once recieved message from uart ,tranform it into json format*/
+        uint32 k = 0;
+        /*used to stored into fifo*/
+        struct json_send_buffer i;
+
+        CLING_DEBUG("free heap size location = %d\n",system_get_free_heap_size());
+        i.pbuffer = (char*)pbuffer;
+        i.lenth = sizeof(pbuffer);
+
+        /*push into fifo which will be sended once connected with server*/
+        CLING_FIFO_IN(http_json_send_fifo, i, struct json_send_buffer);
+#if 1
+
+        if (IS_CLING_FIFO_FULL(http_json_send_fifo) && time_flag == 1) {
+            TRIGGER_LOCATION_SENDING(fifo_json_state);
+            http_obj->connect_ap(http_obj);
+        }
+
+#endif
+
+        //os_free(pbuffer);
+    }
+    break;
+
+    case EVENT_UART_RX_HEALTH: {
+
+		uint32 k=0;
+	    struct json_send_buffer i;
+		
+        char *pbuffer = (char*)(e->par);
+		timestamp_mgr_obj->get_current_timestamp(timestamp_mgr_obj, &k);
+        /*once recieved message from uart ,tranform it into json format*/
+		/*sync time stamp in healthdata to mark its upload time*/
+        /*used to stored into fifo*/
+ 
+        CLING_DEBUG("free heap size health = %d\n",system_get_free_heap_size());
+        i.pbuffer = (char*)pbuffer;
+        i.lenth = sizeof(pbuffer);
+		i.time_stamp = k;
+        /*push into fifo which will be sended once connected with server*/
+        CLING_FIFO_IN(health_json_send_fifo, i, struct json_send_buffer);
+
+#if 1
+
+        if (IS_CLING_FIFO_FULL(health_json_send_fifo) && time_flag == 1) {
+            TRIGGER_HEALTH_SENDING(fifo_json_state);
+            http_obj->connect_ap(http_obj);
+        }
+
+#endif
+        //os_free(pbuffer);
+    }
+    break;
+	
+	case EVENT_UART_RX_CMD:{
+		uint8 cmd = e->par;
+		uint32 k;
+		CLING_DEBUG("task uart cmd recieved= %d\n", cmd);
+		timestamp_mgr_obj->get_current_timestamp(timestamp_mgr_obj, &k);
+		cling_uart_obj->send_data(cling_uart_obj, (char*)&k , sizeof(k));
+	}
+
+	break;
+
+    default:
+        break;
+
+
+
+    }
+
+}
+/******************************************************************************
+ * FunctionName : timer_event_process
+ * Description  : timer event peocess
+ * Parameters   : os_event_t *e : event recieved
+ * Returns      : none
+*******************************************************************************/
+
+LOCAL void ICACHE_FLASH_ATTR
+timer_event_process(os_event_t *e)
+{
+
+    uint8 state = 0;
+    switch (GET_EVENT_TYPE(e->sig)) {
+
+        /*outofdate event*/
+    case EVENT_HTTP_FIFO_CHECK:
+
+        CLING_DEBUG("EVENT_HTTP_FIFO_CHECK\n");
+        TRIGGER_LOCATION_SENDING(fifo_json_state);
+
+        http_obj->get_station_state(http_obj, &state);
+        if (state >= DEVICE_CONNECTING) {
+
+            http_obj->get_http_state(http_obj, &state);
+            CLING_DEBUG("EVENT_HTTP_FIFO_CHECK = %d\n", state);
+
+            if (state == HTTP_DISCONNECT) {
+
+                CLING_DEBUG("EVENT_HTTP_FIFO_CHECK HTTP DISCONNECT\n");
+                http_obj->connect_ap(http_obj);
+                cling_uart_obj->disable_recieving(cling_uart_obj);
+            }
+        }
+
+        break;
+    case EVENT_HEALTH_FIFO_CHECK:
+
+        CLING_DEBUG("EVENT_HEALTH_FIFO_CHECK\n");
+        TRIGGER_HEALTH_SENDING(fifo_json_state);
+        http_obj->get_station_state(http_obj, &state);
+
+        if (state >= DEVICE_CONNECTING) {
+
+            http_obj->get_http_state(http_obj, &state);
+            CLING_DEBUG("EVENT_HEALTH_FIFO_CHECK = %d", state);
+            if (state == HTTP_DISCONNECT) {
+
+                http_obj->connect_ap(http_obj);
+                cling_uart_obj->disable_recieving(cling_uart_obj);
+            }
+        }
+
+        break;
+    default:
+        break;
+
+
+
+    }
+
+}
+
+
+/******************************************************************************
+ * FunctionName : user_task_data_process
+ * Description  : process specific event passed to this task
+ * Parameters   : port -- server port
+ * Returns      : none
+*******************************************************************************/
+
+#define TEST_QUEUE_LEN 20
+LOCAL os_event_t *messge_queue;
+
+LOCAL void ICACHE_FLASH_ATTR
+user_task_data_process(os_event_t *e)
+{
+
+    switch (GET_MSG_TYPE(e->sig)) {
+    case MSG_IPC:
+        ipc_event_process(e);
+        break;
+    case MSG_HTTP:
+        http_event_process(e);
+        break;
+
+    case MSG_TIMESTAMP:
+        timestamp_event_process(e);
+        break;
+    case MSG_UART:
+        uart_event_process(e);
+        break;
+    case MSG_TIMER:
+        timer_event_process(e);
+        break;
+    default:
+        break;
+    }
+}
+
+
+/******************************************************************************
+ * FunctionName : user_task_data_process_init
+ * Description  : initiate data process task
+ * Parameters   : none
+ * Returns      : none
+*******************************************************************************/
+void ICACHE_FLASH_ATTR
+user_task_data_process_init(void)
+{
+    NEW(cling_uart_obj, cling_uart);
+    CLING_DEBUG("SDK version:%s\n", system_get_sdk_version());
+    messge_queue = (os_event_t *)os_malloc(sizeof(os_event_t)*TEST_QUEUE_LEN);
+    system_os_task(user_task_data_process, WEB_CLIIENT_TASK_ID, messge_queue, TEST_QUEUE_LEN);
+    FIFO_JSON_STATE_INITIATE(fifo_json_state);
+}
+/******************************************************************************
+ * FunctionName : http_fifo_checkout_callback
+ * Description  : timer callback to check http fifo to findout
+ *				  if there is any data stored in fifo for a long time
+ * Parameters   : none
+ * Returns      : none
+*******************************************************************************/
+LOCAL void ICACHE_FLASH_ATTR
+location_fifo_checkout_callback(void)
+{
+    CLING_DEBUG("location_fifo_checkout_callback\n");
+    /*there are some message eixsting in http json send fifo*/
+    if (!IS_CLING_FIFO_EMPTY(http_json_send_fifo)) {
+        CLING_DEBUG("IS_CLING_FIFO_EMPTY(http_json_send_fifo==========\n");
+        TRIGGER_LOCATION_SENDING(fifo_json_state);
+        system_os_post(WEB_CLIIENT_TASK_ID, TIMER_EVENT(EVENT_HTTP_FIFO_CHECK), 0);
+    }
+    return;
+}
+/******************************************************************************
+ * FunctionName : http_fifo_checkout_callback
+ * Description  : timer callback to check http fifo to findout
+ *				  if there is any data stored in fifo for a long time
+ * Parameters   : none
+ * Returns      : none
+*******************************************************************************/
+LOCAL void ICACHE_FLASH_ATTR
+location_fifo_timer_start(void)
+{
+#define  HTTP_FIFO_TIMEOUT_PERIOD 10000
+    /*there are some message eixsting in http json send fifo*/
+    os_timer_disarm(&location_fifo_checkout_timer);
+    os_timer_setfn(&location_fifo_checkout_timer, (os_timer_func_t *)location_fifo_checkout_callback, 1);
+    os_timer_arm(&location_fifo_checkout_timer , HTTP_FIFO_TIMEOUT_PERIOD, 1);
+    return;
+}
+/******************************************************************************
+ * FunctionName : location_fifo_timer_start
+ * Description  : reset all the timer in web client file
+ *				  if there is any data stored in fifo for a long time
+ * Parameters   : none
+ * Returns      : none
+*******************************************************************************/
+LOCAL void ICACHE_FLASH_ATTR
+location_fifo_timer_reset(void)
+{
+    /*there are some message eixsting in http json send fifo*/
+    os_timer_disarm(&location_fifo_checkout_timer);
+    os_timer_setfn(&location_fifo_checkout_timer, (os_timer_func_t *)location_fifo_checkout_callback, 1);
+    os_timer_arm(&location_fifo_checkout_timer , HTTP_FIFO_TIMEOUT_PERIOD, 1);
+    return;
+}
+
+
+/******************************************************************************
+ * FunctionName : health_fifo_checkout_callback
+ * Description  : timer callback to check health data fifo to findout
+ *				  if there is any data stored in fifo for a long time
+ * Parameters   : none
+ * Returns      : none
+*******************************************************************************/
+LOCAL void ICACHE_FLASH_ATTR
+health_fifo_checkout_callback(void)
+{
+	CLING_DEBUG("health_fifo_checkout_callback\n");
+
+    /*there are some message eixsting in health json send fifo*/
+    if (!IS_CLING_FIFO_EMPTY(health_json_send_fifo)) {
+
+        system_os_post(WEB_CLIIENT_TASK_ID, TIMER_EVENT(EVENT_HEALTH_FIFO_CHECK), 0);
+    }
+    return;
+}
+/******************************************************************************
+ * FunctionName : http_fifo_checkout_callback
+ * Description  : timer callback to check http fifo to findout
+ *				  if there is any data stored in fifo for a long time
+ * Parameters   : none
+ * Returns      : none
+*******************************************************************************/
+LOCAL void ICACHE_FLASH_ATTR
+health_fifo_timer_start(void)
+{
+#define  HEALTH_FIFO_TIMEOUT_PERIOD 20000
+    /*there are some message eixsting in http json send fifo*/
+    os_timer_disarm(&health_fifo_checkout_timer);
+    os_timer_setfn(&health_fifo_checkout_timer, (os_timer_func_t *)health_fifo_checkout_callback, NULL);
+    os_timer_arm(&health_fifo_checkout_timer , HEALTH_FIFO_TIMEOUT_PERIOD, 1);
+    return;
+}
+/******************************************************************************
+ * FunctionName : health_fifo_timer_reset
+ * Description  : reset all the health_fifo in web client file
+ * Parameters   : none
+ * Returns      : none
+******************************å*************************************************/
+LOCAL void ICACHE_FLASH_ATTR
+health_fifo_timer_reset(void)
+{
+    /*there are some message eixsting in http json send fifo*/
+    os_timer_disarm(&health_fifo_checkout_timer);
+    os_timer_setfn(&health_fifo_checkout_timer, (os_timer_func_t *)health_fifo_checkout_callback, 1);
+    os_timer_arm(&health_fifo_checkout_timer , HEALTH_FIFO_TIMEOUT_PERIOD, 1);
+    return;
+}
+
+/******************************************************************************
+ * FunctionName : web_client_timer_stop
+ * Description  : reset all the timer in web client file
+ *				  if there is any data stored in fifo for a long time
+ * Parameters   : none
+ * Returns      : none
+*******************************************************************************/
+LOCAL void ICACHE_FLASH_ATTR
+web_client_timer_stop(void)
+{
+    /*there are some message eixsting in http json send fifo*/
+    os_timer_disarm(&health_fifo_checkout_timer);
+    os_timer_disarm(&location_fifo_checkout_timer);
+    return;
+}
+
+/******************************************************************************
+ * FunctionName : cling_connect_start_callback
+ * Description  : web client connect to server command
+ * Parameters   : none
+ * Returns      : none
+*******************************************************************************/
+LOCAL void ICACHE_FLASH_ATTR
+cling_connect_start_callback()
+{
+    CLING_DEBUG("cling_connect_start_callback\n");
+    cling_uart_obj->disable_recieving(cling_uart_obj);
+    return;
+}
+
+
+
+
+
+
+

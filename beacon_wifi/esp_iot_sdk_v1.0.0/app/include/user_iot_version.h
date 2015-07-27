@@ -1,0 +1,45 @@
+#ifndef __USER_IOT_VERSION_H__
+#define __USER_IOT_VERSION_H__
+
+#include "user_config.h"
+
+#if 1
+#define IOT_VERSION_MAJOR		BEACON_VERSION_MAJOR
+#define IOT_VERSION_MINOR		BEACON_VERSION_MINOR
+#define IOT_VERSION_REVISION	BEACON_VERSION_REVISION
+#endif
+
+#define BEACON_VERSION_MAJOR		1U
+#define BEACON_VERSION_MINOR		0U
+#define BEACON_VERSION_REVISION		2U
+#define VERSION_NUM   (BEACON_VERSION_MAJOR * 1000 + BEACON_VERSION_MINOR * 100 + BEACON_VERSION_REVISION)
+
+
+//#define VERSION_TYPE      "b"
+#define VERSION_TYPE   	  "v"
+
+#if LOCATION_DEVICE
+#define device_type       45772
+#endif
+
+
+#define ONLINE_UPGRADE    0
+#define LOCAL_UPGRADE     0
+#define ALL_UPGRADE       1
+#define NONE_UPGRADE      0
+
+#if	ONLINE_UPGRADE
+#define UPGRADE_FALG	"O"
+#elif  LOCAL_UPGRADE
+#define UPGRADE_FALG	"l"
+#elif  ALL_UPGRADE
+#define UPGRADE_FALG	"a"
+#elif NONE_UPGRADE
+#define UPGRADE_FALG	"n"
+#endif
+
+#define IOT_VERSION
+
+
+#endif
+

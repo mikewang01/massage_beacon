@@ -1,0 +1,562 @@
+/******************************************************************************
+ * Copyright 2013-2014 Espressif Systems (Wuxi)
+ *
+ * FileName: user_json.c
+ *
+ * Description: JSON format set up and parse.
+ *              Check your hardware transmation while use this data format.
+ *
+ * Modification history:
+ *     2014/5/09, v1.0 create this file.
+*******************************************************************************/
+#include "ets_sys.h"
+#include "osapi.h"
+#include "os_type.h"
+#include "mem.h"
+#include "user_json.h"
+#include "uart_protocol/uart_protocol_mac.h"
+#include "driver/uart.h"
+#include "mem.h"
+#define PACKAGE_HEADER_SYMBOL    0X7D
+#define PACKAGE_TRANSFER_SYMBOL  0X7F
+#define PACKAGE_END_SYMBOL		 0X7E
+
+#define DATA_0X7D_TRANSFERRED	 0X01
+#define DATA_0X7E_TRANSFERRED	 0X02
+#define DATA_0X7F_TRANSFERRED	 0X03
+
+/*SEMAPHORE RELATED*/
+#define SEMAPHORE 	 bool 		
+#define LOCKED		 1
+#define UNLOCKED       0
+#define IS_SEMAPHORE_LOCKED(__x) (__x == LOCKED)     
+#define LOCK_SEMAPHORE(__X) 	 (__X =  LOCKED)
+#define UNLOCK_SEMAPHORE(__x)	 (__x = UNLOCKED)
+
+
+#define  MAC_SEND_BUFFER(__X, __Y) uart0_tx_buffer(__X, __Y)
+#define  ENTER_CRITICAL_SECTION() ETS_INTR_LOCK()
+#define  LEAVE_CRITICAL_SECTION() ETS_INTR_UNLOCK()
+
+/*THE UPPER LIMIT OF TIMES THE DATA BEEN SENDED*/
+#define  RESEND_TIMES_UPPER_THREADHOLD  5 
+/*********************************************************************
+* TYPEDEFS
+*/
+
+
+enum package_send_state{
+	PACKAGE_WAITING_FOR_SENDDING = 0,
+	PACKAGE_WAITING_FOR_ACK,
+	PACKAGE_SENDDED_SUCCESSFULLY
+	
+};
+
+/*used to implement state machine*/
+enum package_state{
+	PACKAGE_BEGIN = 0,
+	PACKAGE_TRANSFER,
+	PACKAGE_PAYLOAD,
+	PACKAGE_END,
+	PACKAGE_NULL
+};
+
+enum package_type{
+	PACKAGE_ACK = 0,
+	PACKAGE_DATA
+
+};	
+/*********************************************************************
+* GLOBAL VARIABLES
+*/
+#define MESSAGE_MAX_CHAIN_LENTH 	8
+	
+/*********************************************************************
+* LOCAL VARIABLES
+*/
+
+/*recieve fifo related pointer*/
+LOCAL enum package_state current_state = PACKAGE_NULL;
+LOCAL struct mac_layer_payload_rev *rev_payload_list_header = NULL;
+LOCAL struct mac_layer_payload_rev *rev_payload_list_tail = NULL;
+LOCAL SEMAPHORE rev_fifo_semphore = UNLOCKED;
+
+
+/**/
+LOCAL struct mac_layer_payload_send *send_package_list_header = NULL;
+LOCAL struct mac_layer_payload_send *send_package_list_tail = NULL;
+LOCAL SEMAPHORE send_fifo_semphore = UNLOCKED;
+
+
+LOCAL bool macsend_ack_recieved();
+LOCAL bool send_package_assemble(struct mac_layer_payload_send *payload_temp, enum package_type type);
+LOCAL bool add_payload2revlist(uint8 *pbuffer, size_t size);
+void received_data_process(RcvMsgBuff *para);
+void receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para);
+
+/******************************************************************************
+ * FunctionName : receive_one_char_callback
+ * Description  : call back function when received one char
+ * Parameters   : uint8 rev_char
+ * Returns      : none
+*******************************************************************************/
+void 
+receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para){
+#if 0
+	MAC_SEND_BUFFER(&rev_char, 1);
+#endif
+	/*this is a state machien from now on*/
+	 switch (current_state){
+	 	case PACKAGE_END:
+		case PACKAGE_NULL:{
+			if (rev_char == PACKAGE_HEADER_SYMBOL){
+				/*change current state machine*/
+				current_state = PACKAGE_BEGIN;
+				/*reset message buffer write pointer*/
+				para->pWritePos = para->pRcvMsgBuff;
+				para->BuffState = EMPTY;
+			}
+		}break;
+
+		case PACKAGE_BEGIN:{
+			if (rev_char == PACKAGE_HEADER_SYMBOL){
+				/*change current state machine*/
+				current_state = PACKAGE_BEGIN;
+				/*reset message buffer write pointer*/
+				para->pWritePos = para->pRcvMsgBuff;
+				para->BuffState = EMPTY;	
+	
+			}else if (rev_char == PACKAGE_END_SYMBOL){
+			 	/*change current state machine*/
+				current_state = PACKAGE_END;
+				
+			}else if (rev_char == PACKAGE_TRANSFER_SYMBOL){/*data need transferred*/
+
+				/*change current state machine*/
+				current_state = PACKAGE_TRANSFER;
+			}else{/*normal data*/
+
+			    para->BuffState = UNDER_WRITE;
+				/*change current state machine*/
+				current_state = PACKAGE_PAYLOAD;
+				*(para->pWritePos) = rev_char;
+				 para->pWritePos++;
+			}
+
+		}break;
+
+		case PACKAGE_TRANSFER:{
+			if (rev_char == PACKAGE_HEADER_SYMBOL){
+				/*change current state machine*/
+				current_state = PACKAGE_BEGIN;
+				/*reset message buffer write pointer*/
+				para->pWritePos = para->pRcvMsgBuff;
+				para->BuffState = EMPTY;
+	
+			}else if (rev_char == PACKAGE_END_SYMBOL){
+			 	/*change current state machine*/
+				current_state = PACKAGE_END;
+				
+			}else if (rev_char == PACKAGE_TRANSFER_SYMBOL){/*data need transferred*/
+
+				/*change current state machine abandon cuurent pakage*/
+					current_state = PACKAGE_END;
+			}else{/*normal data*/
+				/*this means transferred data recieved*/
+				if(rev_char == DATA_0X7D_TRANSFERRED || rev_char == DATA_0X7E_TRANSFERRED || rev_char == DATA_0X7F_TRANSFERRED){
+					para->BuffState = UNDER_WRITE;
+					/*change current state machine*/
+					current_state = PACKAGE_PAYLOAD;
+					*(para->pWritePos) = 0x7d + DATA_0X7D_TRANSFERRED -1;
+					 para->pWritePos++;
+ 
+				}else{
+					/*change current state machine abandon current pakage*/
+					current_state = PACKAGE_END;
+
+				}
+			}
+
+
+		}break;
+
+		case PACKAGE_PAYLOAD:{
+			if (rev_char == PACKAGE_HEADER_SYMBOL){
+				/*change current state machine*/
+				current_state = PACKAGE_BEGIN;
+				/*reset message buffer write pointer*/
+				para->pWritePos = para->pRcvMsgBuff;
+				para->BuffState = EMPTY;
+	
+			}else if (rev_char == PACKAGE_END_SYMBOL){
+
+				
+				para-> BuffState = WRITE_OVER;
+				received_data_process(para);
+			 	/*change current state machine*/
+				current_state = PACKAGE_END;
+				
+			}else if (rev_char == PACKAGE_TRANSFER_SYMBOL){/*data need transferred*/
+
+				/*change current state machine abandon cuurent pakage*/
+					current_state = PACKAGE_TRANSFER;
+			}else{/*normal data*/
+				/*this means transferred data recieved*/
+				
+				*(para->pWritePos) = rev_char;
+				 para->pWritePos++;
+  
+			}
+
+		
+
+	 }break;
+
+		default :break;
+	 }
+#if 0
+	 MAC_SEND_BUFFER((u8*)&current_state, 1);
+#endif
+
+
+}
+
+/******************************************************************************
+ * FunctionName : receive_one_char_callback
+ * Description  : call back function when received one char
+ * Parameters   : uint8 rev_char
+ * Returns      : none
+*******************************************************************************/
+
+void ICACHE_FLASH_ATTR
+received_data_process(RcvMsgBuff *para){
+
+	/*this means this is a ack package*/
+	if (para->pRcvMsgBuff[0] == PACKAGE_ACK){
+		macsend_ack_recieved();
+	}else if (para->pRcvMsgBuff[0] == PACKAGE_DATA){
+		/*add messge to reveived messge list waiting for processing*/
+		add_payload2revlist(para->pRcvMsgBuff + 1, (para->pWritePos - para->pRcvMsgBuff - 1));
+		/*after receieving ,ssend back ack package*/
+		send_package_assemble(NULL, PACKAGE_ACK);
+	}
+
+}
+
+/******************************************************************************
+ * FunctionName : add_payload2list
+ * Description  : internally usedly add a data struct to the chain list
+ * Parameters   : uint8 rev_char
+ * Returns      : none
+*******************************************************************************/
+LOCAL bool ICACHE_FLASH_ATTR
+add_payload2revlist(uint8 *pbuffer, size_t size){
+
+	/*if this lock is occupied by other process then return*/
+	if (IS_SEMAPHORE_LOCKED(rev_fifo_semphore)){
+			return FALSE;
+	}
+	
+	
+	/*enter critical section so that this is a atom acess*/
+	 LOCK_SEMAPHORE(rev_fifo_semphore);
+
+ 	if (rev_payload_list_tail != NULL){
+		if (rev_payload_list_tail->num >= MESSAGE_MAX_CHAIN_LENTH){
+			CLING_DEBUG("++++++++++++++rev_payload_list_tail full return error\n");
+		/*check if the queue is full*/
+			goto FAILED;
+		}
+ 	}
+	
+	struct mac_layer_payload_rev *payload_temp = (struct mac_layer_payload_rev*)os_malloc(sizeof(struct mac_layer_payload_rev));
+	assert(NULL != payload_temp);
+	payload_temp->ppayload = (char*)os_malloc(size);
+	assert(NULL != payload_temp->ppayload);
+	/*initialize payload structor*/
+	
+	os_memcpy(payload_temp->ppayload, pbuffer, size);
+	payload_temp->next = NULL;
+	payload_temp->lenth = size;
+	
+
+	/*add this structor to the list*/
+	if (rev_payload_list_header == NULL){
+		rev_payload_list_header = payload_temp;
+		payload_temp->num = 0;		
+	}else{
+
+		payload_temp->num = rev_payload_list_tail->num + 1;
+		/*assert */
+		rev_payload_list_tail->next = payload_temp;
+
+	}
+
+	rev_payload_list_tail = payload_temp;
+
+
+SUCESS:
+			/*leave criticla section ,release semphore here*/
+	UNLOCK_SEMAPHORE(rev_fifo_semphore);
+	return TRUE;
+FAILED:
+			/*leave criticla section ,release semphore here*/
+	UNLOCK_SEMAPHORE(rev_fifo_semphore);
+	return FALSE;
+
+}
+
+/******************************************************************************
+ * FunctionName : obbtain_payload_from_revlist
+ * Description  : internally used ,obbtain a data struct to the chain list
+ * Parameters   : struct mac_layer_payload_rev *ppayload: mac layer layload pointer
+ * Returns      : none
+*******************************************************************************/
+bool ICACHE_FLASH_ATTR
+obtain_payload_from_revlist(struct mac_layer_payload_rev **ppayload){
+
+/*if this lock is occupied by other process then return*/
+	if (IS_SEMAPHORE_LOCKED(rev_fifo_semphore)){
+			return FALSE;
+	}
+
+	/*enter critical section to lock semphore so to make sure this is a atom acess*/
+	LOCK_SEMAPHORE(rev_fifo_semphore);
+
+	struct mac_layer_payload_rev *ptemp = rev_payload_list_header;
+	/*initialte parameter passed to this function*/
+	*ppayload = NULL;
+	/*if no data existed*/
+	if (ptemp == NULL){
+
+		goto FAILED;
+		
+	}else{
+		/*there is only one data struct exsited in fifo*/
+		if (ptemp == rev_payload_list_tail){
+			*ppayload = ptemp;
+			rev_payload_list_header = NULL;
+			rev_payload_list_tail = NULL;
+			goto SUCESS;
+		}
+		/*more than two data block existed, SO first step is to find the the last data block*/
+		for (; ptemp->next != rev_payload_list_tail; ptemp = ptemp->next);
+		/*assign the last */
+			*ppayload = rev_payload_list_tail;
+			rev_payload_list_tail = ptemp;
+			ptemp->next = NULL;
+		}
+SUCESS:
+	/*leave criticla section ,release semphore here*/
+	UNLOCK_SEMAPHORE(rev_fifo_semphore);
+	return TRUE;
+FAILED:
+	/*leave criticla section ,release semphore here*/
+	UNLOCK_SEMAPHORE(rev_fifo_semphore);
+	return FALSE;
+}
+
+/******************************************************************************
+ * FunctionName : obbtain_payload_from_revlist
+ * Description  : internally used ,obbtain a data struct to the chain list
+ * Parameters   : struct mac_layer_payload_rev *ppayload: mac layer layload pointer
+ * Returns      : none
+*******************************************************************************/
+bool ICACHE_FLASH_ATTR
+mac_send_payload(char *ppayload, size_t lenth){
+
+	/*if this lock is occupied by other process then return*/
+	if (IS_SEMAPHORE_LOCKED(send_fifo_semphore)){
+			return FALSE;
+	}
+	/*enter critical section to lock semphore so to make sure this is a atom acess*/
+	LOCK_SEMAPHORE(send_fifo_semphore);
+		
+	struct mac_layer_payload_send *payload_temp = (struct mac_layer_payload_send*)os_malloc(sizeof(struct mac_layer_payload_send));
+	if	(NULL == payload_temp){
+		goto FAILED;
+	}
+	/*RESET RESEND TIMES*/
+	payload_temp->resend_times = 0;
+
+	
+	payload_temp->ppayload = (char*)os_malloc(lenth);
+	if	(NULL == payload_temp->ppayload){
+		goto FAILED;
+	}
+	
+	payload_temp->state = PACKAGE_WAITING_FOR_SENDDING;
+	payload_temp->lenth = lenth;
+	payload_temp->next = NULL;
+
+	/**/
+	if (NULL == send_package_list_header){
+		send_package_list_header = payload_temp;
+		
+	}else{
+
+		send_package_list_tail->next = payload_temp;
+	}
+	/*rewind the pointer to the end of chain*/
+	send_package_list_tail = payload_temp;
+
+SUCESS:
+		/*leave criticla section ,release semphore here*/
+	UNLOCK_SEMAPHORE(send_fifo_semphore);
+	return TRUE;
+FAILED:
+	/*leave criticla section ,release semphore here*/
+	UNLOCK_SEMAPHORE(send_fifo_semphore);
+	return FALSE;
+
+	
+}
+
+/******************************************************************************
+ * FunctionName : obbtain_payload_from_revlist
+ * Description  : internally used ,obbtain a data struct to the chain list
+ * Parameters   : struct mac_layer_payload_rev *ppayload: mac layer layload pointer
+ * Returns      : none
+*******************************************************************************/
+LOCAL bool ICACHE_FLASH_ATTR
+mac_sendlist_mantain_demon(){
+
+	struct mac_layer_payload_send *payload_temp = send_package_list_header;
+		/*if this lock is occupied by other process then return*/
+	if (IS_SEMAPHORE_LOCKED(send_fifo_semphore)){
+			return FALSE;
+	}
+	/*enter critical section to lock semphore so to make sure this is a atom acess*/
+	LOCK_SEMAPHORE(send_fifo_semphore);
+	/**/
+	if (NULL == payload_temp){
+		goto SUCESS;
+		
+	}else{
+		/*current data need to be transmitted*/
+		if (payload_temp->state == PACKAGE_WAITING_FOR_SENDDING){
+
+			send_package_assemble(payload_temp, PACKAGE_DATA);
+			payload_temp->resend_times = 0;
+			/*send data over here*/
+			payload_temp->state = PACKAGE_WAITING_FOR_ACK;
+
+		}else if (payload_temp->state == PACKAGE_WAITING_FOR_ACK){
+
+			if (payload_temp->resend_times < RESEND_TIMES_UPPER_THREADHOLD) {
+				send_package_assemble(payload_temp, PACKAGE_DATA);
+				payload_temp->resend_times ++;		
+				}else{
+				/*remove the packege sended successfully*/
+			send_package_list_header = send_package_list_header->next;
+			/*free payload buffer*/
+			os_free(payload_temp->ppayload);
+			os_free(payload_temp);
+		
+				}
+
+			
+			/*timeout process*/
+
+		}else if (payload_temp->state == PACKAGE_SENDDED_SUCCESSFULLY){
+			/*remove the packege sended successfully*/
+			send_package_list_header = send_package_list_header->next;
+			/*free payload buffer*/
+			os_free(payload_temp->ppayload);
+			os_free(payload_temp);
+		}
+	}
+
+SUCESS:
+	/*leave criticla section ,release semphore here*/
+	UNLOCK_SEMAPHORE(send_fifo_semphore);
+	return TRUE;
+FAILED:
+	/*leave criticla section ,release semphore here*/
+	UNLOCK_SEMAPHORE(send_fifo_semphore);
+	return FALSE;
+
+	
+}
+
+/******************************************************************************
+ * FunctionName : macsend_ack_recieved()
+ * Description  : internally used when a ack package is recieved 
+ * Parameters   : struct mac_layer_payload_rev *ppayload: mac layer layload pointer
+ * Returns      : none
+*******************************************************************************/
+LOCAL bool ICACHE_FLASH_ATTR
+macsend_ack_recieved(){
+	struct mac_layer_payload_send *payload_temp = send_package_list_header; 
+		/**/
+		if (NULL == payload_temp){
+			return TRUE;
+			
+		}else{
+			
+			if (payload_temp->state == PACKAGE_WAITING_FOR_ACK){
+				/*clent has revieced the package successfully */
+				payload_temp->state = PACKAGE_SENDDED_SUCCESSFULLY;
+				
+			 }
+		}
+	
+	
+		return TRUE;
+
+
+}
+
+/******************************************************************************
+ * FunctionName : macsend_ack_recieved()
+ * Description  : internally used ,obbtain a data struct to the chain list
+ * Parameters   : struct mac_layer_payload_rev *ppayload: mac layer layload pointer
+ * Returns      : none
+*******************************************************************************/
+LOCAL bool ICACHE_FLASH_ATTR
+send_package_assemble(struct mac_layer_payload_send *payload_temp, enum package_type type){
+
+	uint16 i = 0;
+	if (type == PACKAGE_ACK){
+		char ack_buffer[] = {PACKAGE_HEADER_SYMBOL, PACKAGE_ACK, PACKAGE_END_SYMBOL};
+		/*send ddta to client*/
+		MAC_SEND_BUFFER(ack_buffer, sizeof(ack_buffer));
+	}else if (type == PACKAGE_DATA){
+		char data_buffer[100];
+		uint16 position = 0;
+
+		data_buffer[position] = PACKAGE_HEADER_SYMBOL;
+		position++;
+		data_buffer[position] = PACKAGE_DATA;
+		position ++;
+		/*process the data transferred by uart*/
+		for(; i < (payload_temp->lenth); i++){
+			/*Sspecail data*/
+			if((payload_temp->ppayload[i]) == PACKAGE_HEADER_SYMBOL || (payload_temp->ppayload[i]) == PACKAGE_END_SYMBOL || (payload_temp->ppayload[i]) == PACKAGE_TRANSFER_SYMBOL){
+
+				data_buffer[position] = PACKAGE_TRANSFER_SYMBOL;
+				position++;
+				data_buffer[position] = (payload_temp->ppayload[i] - PACKAGE_HEADER_SYMBOL + 1);
+				position++;
+			}else{
+				
+				data_buffer[position] = (payload_temp->ppayload[i]);
+				position++;
+			}
+			
+		}
+		/*full fill end chractor*/
+		data_buffer[position] = PACKAGE_END_SYMBOL;
+		position++;
+
+		MAC_SEND_BUFFER(data_buffer, position);
+	}
+	
+	
+		return TRUE;
+
+
+}
+
+
+
