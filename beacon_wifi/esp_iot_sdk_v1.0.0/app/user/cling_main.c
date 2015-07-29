@@ -40,31 +40,56 @@ unsigned int default_private_key_len = 0;
 #endif
 #include "cling_ap_para.h"
 #include "io_assignment.h"
+#include "oop_hal.h"
+#include "protocol/protocol_cmd.h"
+
 /******************************************************************************
  * FunctionName : user_init
  * Description  : entry of user application, init user function here
  * Parameters   : none
  * Returns      : none
 *******************************************************************************/
-bool  spi_user_flash_init();
-int raspi_read(char *buf, unsigned int from, int len);
-int raspi_erase_write(char *buf, unsigned int offs, int count);
-unsigned long raspi_init(void);
-u16 SPI_Flash_ReadID(void);
-int raspi_erase(unsigned int offs, int len);
-int raspi_write(char *buf, unsigned int to, int len);
-uint32 spi_user_flash_get_id(void);
+
+
+bool spi_sync_pin_interrupt_init();
+bool spi_comm_init();
+void spi_send_byes(char *s, uint16 lenth);
+void get_valid_snyc_signal_short(void);
+void uart_init(UartBautRate uart0_br, UartBautRate uart1_br);
 
 void user_init(void)
 {
-
-		char *a = "00003141592653";
+		CLASS(cling_uart) *cling_uart_obj;
+		NEW(cling_uart_obj, cling_uart);
+		//char *a = "00003141592653";
 		char temp[20] = {0};
+		//char b[64]={0x7d, 0x00, 0x7e,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25};
 		wifi_set_opmode(STATION_MODE);
         CLING_WIFI_INDICATOR_LED_INSTALL();
+		uart_init(BIT_RATE_115200,BIT_RATE_115200);
+			//while(1){
+		char a[]={1,2,3,4};
+		cling_uart_obj->send_data(cling_uart_obj, a , 4);
+	   //	os_delay_us(10000000);
+		CLING_DEBUG("DATA SENDED\n");
+  	//}
+	
+
+#if 0
         //user_devicefind_init();
-        user_task_data_process_init();
-        cling_task_misc_process_init();
+        spi_sync_pin_interrupt_init();
+		spi_comm_init();
+       
+		uart_init(BIT_RATE_115200,BIT_RATE_115200);
+		while(1){
+			//spi_send_byes(b, 64);
+			get_valid_snyc_signal_short();		
+			os_delay_us(1000);
+		}
+#endif
+	//	user_task_data_process_init();
+	//	cling_task_misc_process_init();
+		
 #if 0
 		spi_user_flash_init();
 		

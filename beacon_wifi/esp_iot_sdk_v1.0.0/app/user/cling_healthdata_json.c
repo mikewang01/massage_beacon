@@ -23,7 +23,7 @@
 #include "user_webclient.h"
 #include "user_json.h"
 #include "cling_upload_json.h"
-#include "uart_protocol/uart_protocol_cmd.h"
+#include "protocol/protocol_cmd.h"
 #include "cling_healthdata_json.h"
 /*********************************************************************
 * MACROS

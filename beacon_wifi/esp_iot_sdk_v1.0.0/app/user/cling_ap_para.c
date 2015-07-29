@@ -28,7 +28,7 @@
 #include "user_json.h"
 #include "driver/uart.h"
 
-#include "uart_protocol/uart_protocol_cmd.h"
+#include "protocol/protocol_cmd.h"
 #include "cling_fifo.h"
 #include "smartconfig.h"
 #include "io_assignment.h"

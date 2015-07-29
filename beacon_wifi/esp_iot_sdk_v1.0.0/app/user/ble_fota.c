@@ -592,7 +592,7 @@ init_ble_fota(CLASS(ble_fota) *arg)
 	arg->user_flow = NULL;
 	/*construct interface inherated by child object*/
 	NEW(arg->user_flow, uart_implement);
-	NEW(arg->p_user_flash, spi_user_flash);
+	//NEW(arg->p_user_flash, spi_user_flash);
 	//ble_upgrade_set_user_flow(arg->user_flow->send_data);
 	/*malloc corresponed parameter buffer*/
 	struct fota_paramater *fota_data = (struct fota_paramater*)os_malloc(sizeof(struct fota_paramater));

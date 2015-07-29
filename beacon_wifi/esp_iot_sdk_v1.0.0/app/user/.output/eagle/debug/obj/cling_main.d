@@ -19,4 +19,7 @@
  ../../include/assert.h ../../include/mem.h \
  ../include/user_esp_platform.h ../include/oop_hal.h \
  ../../include/ip_addr.h ../include/cling_ap_para.h \
- ../include/cling_para_interface.h ../include/io_assignment.h
+ ../include/cling_para_interface.h ../include/io_assignment.h \
+ ../include/protocol/protocol_cmd.h ../../include/C_types.h \
+ ../include/cling_healthdata_json.h ../include/cling_rtc.h \
+ ../../include/os_type.h

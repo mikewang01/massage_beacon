@@ -13,7 +13,7 @@
  /opt/xtensa-lx106-elf/lib/gcc/xtensa-lx106-elf/4.8.2/include/stddef.h \
  ../include/user_config.h ../../include/mem.h ../include/ble_fota.h \
  ../include/oop_hal.h ../../include/assert.h ../include/upgrade_ble.h \
- ../../include/upgrade.h ../include/uart_protocol/uart_protocol_mac.h \
+ ../../include/upgrade.h ../include/protocol/protocol_mac.h \
  ../../include/C_types.h ../include/oop_hal.h \
  ../include/driver/spi_user_flash.h ../../include/c_types.h \
  ../../include/ip_addr.h ../include/user_esp_platform.h \

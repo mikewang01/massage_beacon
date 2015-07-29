@@ -28,7 +28,7 @@
 #include "user_json.h"
 #include "driver/uart.h"
 
-#include "uart_protocol/uart_protocol_cmd.h"
+#include "protocol/protocol_cmd.h"
 #include "cling_fifo.h"
 #include "cling_ap_para.h"
 #include  "io_assignment.h"
@@ -683,6 +683,7 @@ user_task_data_process_init(void)
     messge_queue = (os_event_t *)os_malloc(sizeof(os_event_t)*TEST_QUEUE_LEN);
     system_os_task(user_task_data_process, WEB_CLIIENT_TASK_ID, messge_queue, TEST_QUEUE_LEN);
     FIFO_JSON_STATE_INITIATE(fifo_json_state);
+
 }
 /******************************************************************************
  * FunctionName : http_fifo_checkout_callback

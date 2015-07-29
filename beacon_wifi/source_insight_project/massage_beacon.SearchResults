@@ -1,0 +1,2 @@
+---- #include "uart_protocol/uart_protocol_mac.h" Matches (1 in 1 files) ----
+Cling_uart_mac.c (e:\vm\share\massage_beacon\beacon_wifi\esp_iot_sdk_v1.0.0\app\protocol):#include "uart_protocol/uart_protocol_mac.h"

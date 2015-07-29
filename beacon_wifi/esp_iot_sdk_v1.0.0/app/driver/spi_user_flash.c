@@ -337,7 +337,7 @@ spic_transfer(const u8 *cmd, int n_cmd, u8 *buf, int n_buf, int flag)
     for (retval = 0; retval < n_cmd; retval++) {
 
         //spi_mast_byte_write(USER_FLASH_SPI ,cmd[retval]);
-        spi_tx8(USER_FLASH_SPI, cmd[retval]);
+        spi_tx8(USER_FLASH_SPI, cmd+retval);
         if (spic_busy_wait()) {
             retval = -1;
             goto end_trans;
@@ -365,7 +365,7 @@ spic_transfer(const u8 *cmd, int n_cmd, u8 *buf, int n_buf, int flag)
     } else if (flag & SPIC_WRITE_BYTES) {
         for (retval = 0; retval < n_buf; retval++) {
             //spi_mast_byte_write(USER_FLASH_SPI ,buf[retval]);
-            spi_tx8(USER_FLASH_SPI, buf[retval]);
+             spi_tx8(USER_FLASH_SPI, cmd+retval);
             if (spic_busy_wait()) {
                 goto end_trans;
             }

@@ -23,5 +23,5 @@
  ../../include/json/json.h ../../include/json/jsontree.h \
  ../include/user_esp_platform.h ../../include/ip_addr.h \
  ../include/user_webclient.h ../include/cling_upload_json.h \
- ../include/uart_protocol/uart_protocol_cmd.h ../include/oop_hal.h \
+ ../include/protocol/protocol_cmd.h ../include/oop_hal.h \
  ../include/cling_healthdata_json.h ../include/cling_rtc.h

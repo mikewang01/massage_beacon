@@ -3,7 +3,7 @@
 #include "oop_hal.h"
 #include "upgrade_ble.h"
 #include "upgrade.h"
-#include "uart_protocol/uart_protocol_mac.h"
+#include "protocol/protocol_mac.h"
 #include "driver/spi_user_flash.h"
 
 DEF_CLASS(ble_fota)

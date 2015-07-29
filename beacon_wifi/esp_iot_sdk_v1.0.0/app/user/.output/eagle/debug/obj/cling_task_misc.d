@@ -24,11 +24,10 @@
  ../include/user_esp_platform.h ../../include/ip_addr.h \
  ../include/user_webclient.h ../include/driver/uart.h \
  ../include/driver/uart_register.h ../include/oop_hal.h \
- ../include/uart_protocol/uart_protocol_cmd.h \
- ../include/cling_healthdata_json.h ../include/cling_rtc.h \
- ../include/cling_fifo.h ../include/cling_ap_para.h \
- ../include/cling_para_interface.h ../include/io_assignment.h \
- ../../include/gpio.h ../include/cling_fota.h ../../include/upgrade.h \
- ../include/cling_rtc.h ../include/ble_fota.h ../include/upgrade_ble.h \
- ../include/uart_protocol/uart_protocol_mac.h \
+ ../include/protocol/protocol_cmd.h ../include/cling_healthdata_json.h \
+ ../include/cling_rtc.h ../include/cling_fifo.h \
+ ../include/cling_ap_para.h ../include/cling_para_interface.h \
+ ../include/io_assignment.h ../../include/gpio.h ../include/cling_fota.h \
+ ../../include/upgrade.h ../include/cling_rtc.h ../include/ble_fota.h \
+ ../include/upgrade_ble.h ../include/protocol/protocol_mac.h \
  ../include/driver/spi_user_flash.h

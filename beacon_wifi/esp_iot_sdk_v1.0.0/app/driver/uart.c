@@ -181,7 +181,7 @@ void uart_rx_intr_enable(uint8 uart_no)
  * Returns      : NONE
 *******************************************************************************/
 void uart0_tx_buffer(uint8 *buf, uint16 len);
-void receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para);
+int receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para);
 extern int flasg_test;
 
 LOCAL void

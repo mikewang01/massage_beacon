@@ -14,6 +14,8 @@
  ../../include/mem.h ../include/user_json.h \
  ../../include/json/jsonparse.h ../../include/c_types.h \
  ../../include/json/json.h ../../include/json/jsontree.h \
- ../include/uart_protocol/uart_protocol_mac.h ../../include/C_types.h \
- ../include/oop_hal.h ../../include/assert.h ../include/driver/uart.h \
- ../include/driver/uart_register.h
+ ../include/protocol/protocol_mac.h ../../include/C_types.h \
+ ../include/oop_hal.h ../../include/assert.h \
+ ../include/protocol/protocol_cmd.h ../include/cling_healthdata_json.h \
+ ../include/cling_rtc.h ../include/oop_hal.h ../include/driver/uart.h \
+ ../include/driver/uart_register.h ../include/driver/spi_comm.h

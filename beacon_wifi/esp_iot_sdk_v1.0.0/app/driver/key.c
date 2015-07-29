@@ -188,7 +188,7 @@ key_intr_handler(struct keys_param *keys)
 {
     uint8 i;
     uint32 gpio_status = GPIO_REG_READ(GPIO_STATUS_ADDRESS);
-
+	os_printf("key_intr_handler = %04X\r\n", gpio_status);
     for (i = 0; i < keys->key_num; i++) {
         if (gpio_status & BIT(keys->single_key[i]->gpio_id)) {
             //disable interrupt

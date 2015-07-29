@@ -14,9 +14,11 @@
 #include "os_type.h"
 #include "mem.h"
 #include "user_json.h"
-#include "uart_protocol/uart_protocol_mac.h"
-#include "driver/uart.h"
-#include "mem.h"
+#include "protocol/protocol_mac.h"
+#include "protocol/protocol_cmd.h"
+#include "driver/uart.h"
+#include "driver/spi_comm.h"
+
 #define PACKAGE_HEADER_SYMBOL    0X7D
 #define PACKAGE_TRANSFER_SYMBOL  0X7F
 #define PACKAGE_END_SYMBOL		 0X7E
@@ -34,7 +36,7 @@
 #define UNLOCK_SEMAPHORE(__x)	 (__x = UNLOCKED)
 
 
-#define  MAC_SEND_BUFFER(__X, __Y) uart0_tx_buffer(__X, __Y)
+#define  MAC_SEND_BUFFER(__X, __Y)  phy_obj->send(phy_obj, __X, __Y)  
 #define  ENTER_CRITICAL_SECTION() ETS_INTR_LOCK()
 #define  LEAVE_CRITICAL_SECTION() ETS_INTR_UNLOCK()
 
@@ -77,7 +79,7 @@ enum package_type {
 /*********************************************************************
 * LOCAL VARIABLES
 */
-
+LOCAL CLASS(spi_comm) *phy_obj = NULL;
 /*recieve fifo related pointer*/
 LOCAL enum package_state current_state = PACKAGE_NULL;
 LOCAL struct mac_layer_payload_rev *rev_payload_list_header = NULL;
@@ -99,7 +101,7 @@ LOCAL bool send_package_assemble(struct mac_layer_payload_send *payload_temp, en
 LOCAL bool add_payload2revlist(uint8 *pbuffer, size_t size);
 LOCAL bool mac_sendlist_mantain_demon();
 void received_data_process(RcvMsgBuff *para);
-void receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para);
+int receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para);
 
 /******************************************************************************
  * FunctionName : receive_one_char_callback
@@ -107,8 +109,7 @@ void receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para);
  * Parameters   : uint8 rev_char
  * Returns      : none
 *******************************************************************************/
-void
-receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para)
+int receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para)
 {
 #if 0
     MAC_SEND_BUFFER(&rev_char, 1);
@@ -230,6 +231,8 @@ receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para)
 #if 0
     MAC_SEND_BUFFER((u8*)&current_state, 1);
 #endif
+
+	return  ((current_state == PACKAGE_END)?1:0);
 
 
 }
@@ -633,6 +636,23 @@ send_package_assemble(struct mac_layer_payload_send *payload_temp, enum package_
 
 
 }
+/******************************************************************************
+ * FunctionName : init_protocol_mac_layer
+ * Description	: implement uart mac layer interface
+ * Parameters	: none
+ * Returns		: none
+*******************************************************************************/
+bool ICACHE_FLASH_ATTR
+init_protocol_mac_layer()
+{
+	/*initiate phisical tranmit method*/
+	NEW(phy_obj,  spi_comm);
+	phy_obj->recv_callback_register(phy_obj, receive_one_char_callback);
+	return TRUE;
+}
+
+
+
 /******************************************************************************
  * FunctionName : init_uart_implement
  * Description	: implement uart mac layer interface
