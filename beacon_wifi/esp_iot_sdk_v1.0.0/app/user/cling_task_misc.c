@@ -56,7 +56,7 @@
 * LOCAL VARIABLES
 */
 
-LOCAL CLASS(cling_uart)  *cling_uart_obj = NULL;
+LOCAL CLASS(cling_protocol)  *cling_uart_obj = NULL;
 LOCAL struct station_config station_conf;
 LOCAL CLASS(cling_ap_para) *smart_config_obj = NULL;
 LOCAL os_event_t *messge_queue;

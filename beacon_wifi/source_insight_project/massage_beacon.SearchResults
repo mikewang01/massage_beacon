@@ -1,2 +1,11 @@
----- #include "uart_protocol/uart_protocol_mac.h" Matches (1 in 1 files) ----
-Cling_uart_mac.c (e:\vm\share\massage_beacon\beacon_wifi\esp_iot_sdk_v1.0.0\app\protocol):#include "uart_protocol/uart_protocol_mac.h"
+---- send_package_assemble Matches (10 in 0 files) ----
+Massage_mac.c (app\protocol):LOCAL bool send_package_assemble(struct massage_mac_layer_payload_send *payload_temp, enum package_type type);
+Massage_mac.c (app\protocol):		// send_package_assemble(NULL, PACKAGE_ACK);
+Massage_mac.c (app\protocol):       // send_package_assemble(NULL, PACKAGE_ACK);
+Massage_mac.c (app\protocol): * FunctionName : send_package_assemble()
+Massage_mac.c (app\protocol):send_package_assemble(struct massage_mac_layer_payload_send *payload_temp, enum package_type type)
+Massage_mac.c (app\protocol):        send_package_assemble(send_package_list_header, PACKAGE_LOW_FIVEBYTES);
+Massage_mac.c (app\protocol):            send_package_assemble(payload_temp, payload_temp->pakage_type);
+Massage_mac.c (app\protocol):                send_package_assemble(payload_temp, payload_temp->pakage_type);
+Massage_mac.c (app\protocol):                    send_package_assemble(payload_temp, payload_temp->pakage_type);
+Massage_mac.c (app\protocol):                send_package_assemble(payload_temp, payload_temp->pakage_type);

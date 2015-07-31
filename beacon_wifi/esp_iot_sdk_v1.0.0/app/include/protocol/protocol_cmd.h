@@ -75,17 +75,17 @@ struct cling_cmd_rev{
 
 
 /*object prototype declaration*/
-DEF_CLASS(cling_uart)
-	bool (*init)    	(CLASS(cling_uart) *arg); 			/*initiate uart object*/
-	bool (*de_init) 	(CLASS(cling_uart) *arg);				/*delete uart object*/
-	bool (*send_data) 		(CLASS(cling_uart) *arg, char *pinf, size_t lenth);/*data send   function*/
-	bool (*send_cmd) 		(CLASS(cling_uart) *arg, char *pinf, size_t lenth);/*data send   function*/
-	bool (*enable_recieving) (CLASS(cling_uart) *arg);
-	bool (*disable_recieving) (CLASS(cling_uart) *arg);
-	bool (*task_register) 	(CLASS(cling_uart) *arg, uint16 task_id);			/*register  object*/
-	bool (*recv_callback_register) 	(CLASS(cling_uart) *arg, void (*callback)(void *pbuffer));/*register  object*/
+DEF_CLASS(cling_protocol)
+	bool (*init)    	(CLASS(cling_protocol) *arg); 			/*initiate uart object*/
+	bool (*de_init) 	(CLASS(cling_protocol) *arg);				/*delete uart object*/
+	bool (*send_data) 		(CLASS(cling_protocol) *arg, char *pinf, size_t lenth);/*data send   function*/
+	bool (*send_cmd) 		(CLASS(cling_protocol) *arg, char *pinf, size_t lenth);/*data send   function*/
+	bool (*enable_recieving) (CLASS(cling_protocol) *arg);
+	bool (*disable_recieving) (CLASS(cling_protocol) *arg);
+	bool (*task_register) 	(CLASS(cling_protocol) *arg, uint16 task_id);			/*register  object*/
+	bool (*recv_callback_register) 	(CLASS(cling_protocol) *arg, void (*callback)(void *pbuffer));/*register  object*/
 	void *user_data;/*point to user private data*/
-END_DEF_CLASS(cling_uart)
+END_DEF_CLASS(cling_protocol)
 
 
 

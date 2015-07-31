@@ -36,7 +36,14 @@
 #define UNLOCK_SEMAPHORE(__x)	 (__x = UNLOCKED)
 
 
+/*incase of redefination of one macro*/
+#ifdef   MAC_SEND_BUFFER
+#undef   MAC_SEND_BUFFER
+#endif
 #define  MAC_SEND_BUFFER(__X, __Y)  phy_obj->send(phy_obj, __X, __Y)
+
+
+
 #define  ENTER_CRITICAL_SECTION() ETS_INTR_LOCK()
 #define  LEAVE_CRITICAL_SECTION() ETS_INTR_UNLOCK()
 

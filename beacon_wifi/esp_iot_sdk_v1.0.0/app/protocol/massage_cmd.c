@@ -20,13 +20,19 @@
 #include "user_webclient.h"
 
 #include "driver/uart.h"
-#include "protocol/protocol_mac.h"
-#include "protocol/protocol_cmd.h"
+#include "protocol/massage_mac.h"
+#include "protocol/massage_cmd.h"
 #include "task_signal.h"
 /*********************************************************************
 * MACROS
 */
 #define  CLING_CLING_UART_FIFO_POLL_PERIOAD 50
+
+
+#define MASSAGE_POWER_ON 
+/*=====================================================================massage related command==================*/
+
+
 /*********************************************************************
 * TYPEDEFS
 */
@@ -44,7 +50,7 @@ struct cling_protocol_data {
 /*********************************************************************
 * LOCAL VARIABLES
 */
-LOCAL CLASS(cling_protocol) *this = NULL;
+LOCAL CLASS(massage_protocol) *this = NULL;
 
 
 /*********************************************************************
@@ -55,12 +61,12 @@ LOCAL CLASS(cling_protocol) *this = NULL;
 /*********************************************************************
 * FUNCTIONS
 */
-LOCAL bool delete_cling_protocol(CLASS(cling_protocol) *arg);
-LOCAL bool cling_data_recieved_poll(CLASS(cling_protocol) *arg);
-LOCAL bool cling_uart_taskid_register(CLASS(cling_protocol) *arg, uint16 task_id);
-LOCAL bool cling_data_send(CLASS(cling_protocol) *arg, char *pinf, size_t lenth);
-LOCAL bool enable_recieving(CLASS(cling_protocol) *arg);
-LOCAL bool disable_recieving(CLASS(cling_protocol) *arg);
+LOCAL bool delete_massage_protocol(CLASS(massage_protocol) *arg);
+LOCAL bool cling_data_recieved_poll(CLASS(massage_protocol) *arg);
+LOCAL bool cling_uart_taskid_register(CLASS(massage_protocol) *arg, uint16 task_id);
+LOCAL bool cling_data_send(CLASS(massage_protocol) *arg, char *pinf, size_t lenth);
+LOCAL bool enable_recieving(CLASS(massage_protocol) *arg);
+LOCAL bool disable_recieving(CLASS(massage_protocol) *arg);
 LOCAL void cling_cmd_rev_callback(char cmd);
 
 /******************************************************************************
@@ -71,42 +77,42 @@ LOCAL void cling_cmd_rev_callback(char cmd);
 *******************************************************************************/
 
 bool ICACHE_FLASH_ATTR
-init_cling_protocol(CLASS(cling_protocol) *arg)
+init_massage_protocol(CLASS(massage_protocol) *arg)
 {
 
-	
+
     assert(NULL != arg);
-	if (this == NULL){
-	    struct cling_protocol_data *private_data = (struct cling_protocol_data*)os_malloc(sizeof(struct cling_protocol_data));
-	    assert(NULL != private_data);
-	    /*ini tprivate data*/
-	    private_data->task_id_reg = USER_TASK_PRIO_MAX + 1;
-	    arg->user_data = private_data;
+    if (this == NULL) {
+        struct cling_protocol_data *private_data = (struct cling_protocol_data*)os_malloc(sizeof(struct cling_protocol_data));
+        assert(NULL != private_data);
+        /*ini tprivate data*/
+        private_data->task_id_reg = USER_TASK_PRIO_MAX + 1;
+        arg->user_data = private_data;
 
-	    /*initiate cilng command receive object*/
-	    arg->init    = init_cling_protocol;
-	    arg->de_init = delete_cling_protocol;
-	    arg->task_register = cling_uart_taskid_register;
+        /*initiate cilng command receive object*/
+        arg->init    = init_massage_protocol;
+        arg->de_init = delete_massage_protocol;
+        arg->task_register = cling_uart_taskid_register;
 
-	    arg->send_data = cling_data_send;
+        arg->send_data = cling_data_send;
 
-	    arg->enable_recieving = enable_recieving;
-	    arg->disable_recieving = disable_recieving;
+        arg->enable_recieving = enable_recieving;
+        arg->disable_recieving = disable_recieving;
 
-	    //uart_init(BIT_RATE_115200, BIT_RATE_115200);
+        //uart_init(BIT_RATE_115200, BIT_RATE_115200);
 
-	    set_recieved_cmd_call_back(cling_cmd_rev_callback);
-	    /*restart flag updating progress*/
-	  //  os_timer_disarm(&(private_data->uart_timer));
-	   // os_timer_setfn(&(private_data->uart_timer), (os_timer_func_t *)cling_data_recieved_poll, arg);
-	  //  os_timer_arm(&(private_data->uart_timer), CLING_CLING_UART_FIFO_POLL_PERIOAD, 1);
-		/*initiate mac layer and physical layer related */
-		init_protocol_mac_layer();
-		this = arg;
-	}else{
-		
-	}
-	return TRUE;
+        set_massage_recieved_cmd_call_back(cling_cmd_rev_callback);
+        /*restart flag updating progress*/
+        //  os_timer_disarm(&(private_data->uart_timer));
+        // os_timer_setfn(&(private_data->uart_timer), (os_timer_func_t *)cling_data_recieved_poll, arg);
+        //  os_timer_arm(&(private_data->uart_timer), CLING_CLING_UART_FIFO_POLL_PERIOAD, 1);
+        /*initiate mac layer and physical layer related */
+       // init_protocol_mac_layer();
+        this = arg;
+    } else {
+
+    }
+    return TRUE;
 }
 
 
@@ -121,7 +127,7 @@ init_cling_protocol(CLASS(cling_protocol) *arg)
 
 #if 1
 LOCAL bool ICACHE_FLASH_ATTR
-enable_recieving(CLASS(cling_protocol) *arg)
+enable_recieving(CLASS(massage_protocol) *arg)
 {
     /*check object parameter*/
     assert(NULL != arg);
@@ -142,7 +148,7 @@ enable_recieving(CLASS(cling_protocol) *arg)
 
 #if 1
 LOCAL bool ICACHE_FLASH_ATTR
-disable_recieving(CLASS(cling_protocol) *arg)
+disable_recieving(CLASS(massage_protocol) *arg)
 {
     /*check object parameter*/
     assert(NULL != arg);
@@ -165,7 +171,7 @@ disable_recieving(CLASS(cling_protocol) *arg)
 
 #if 1
 LOCAL bool ICACHE_FLASH_ATTR
-delete_cling_protocol(CLASS(cling_protocol) *arg)
+delete_massage_protocol(CLASS(massage_protocol) *arg)
 {
     /*check object parameter*/
     assert(NULL != arg);
@@ -173,12 +179,12 @@ delete_cling_protocol(CLASS(cling_protocol) *arg)
 
     /*malloc corresponed dparameter buffer*/
     struct cling_protocol_data *private_data = (struct cling_protocol_data*)(arg->user_data);
-  //  ETS_UART_INTR_DISABLE();
+    //  ETS_UART_INTR_DISABLE();
     /*disarm poll timer*/
     os_timer_disarm(&(private_data->uart_timer));
     os_free(private_data);
     os_free(arg);
-	this = NULL;
+    this = NULL;
     return TRUE;
 
 }
@@ -195,7 +201,7 @@ delete_cling_protocol(CLASS(cling_protocol) *arg)
 
 #if 1
 LOCAL bool ICACHE_FLASH_ATTR
-cling_uart_taskid_register(CLASS(cling_protocol) *arg, uint16 task_id)
+cling_uart_taskid_register(CLASS(massage_protocol) *arg, uint16 task_id)
 {
     /*check object parameter*/
     assert(NULL != arg);
@@ -227,7 +233,7 @@ LOCAL void ICACHE_FLASH_ATTR
 cling_cmd_rev_callback(char cmd)
 {
     CLING_DEBUG("cmd revecied\n");
-	 /*malloc corresponed dparameter buffer*/
+    /*malloc corresponed dparameter buffer*/
     struct cling_protocol_data *private_data = (struct cling_protocol_data*)(this->user_data);
 
     if (IS_TASK_VALID(private_data->task_id_reg)) {
@@ -245,7 +251,7 @@ cling_cmd_rev_callback(char cmd)
 #if 1
 
 LOCAL bool ICACHE_FLASH_ATTR
-cling_data_recieved_poll(CLASS(cling_protocol) *arg)
+cling_data_recieved_poll(CLASS(massage_protocol) *arg)
 {
 
     struct mac_layer_payload_rev *i = NULL;
@@ -255,48 +261,12 @@ cling_data_recieved_poll(CLASS(cling_protocol) *arg)
 
     /*if obtain a message from fifo succesfully,return true*/
     if (obtain_payload_from_revlist(&i) == TRUE) {
-#ifdef UART_OLD_PROTOCAL
-
-        CLING_DEBUG("uart cmd layer recieved%d\n", sizeof(struct cling_health_rev));
-        if (i->lenth == sizeof(struct cling_inf_rev)) {
-            CLING_DEBUG("location recieved%d\n", i->lenth);
-            struct cling_inf_rev *inf_i =  (struct cling_inf_rev *)(i->ppayload);
-            /*post cling device information from ble device to task registered*/
-            if (IS_TASK_VALID(private_data->task_id_reg)) {
-                system_os_post(private_data->task_id_reg, UART_EVENT(EVENT_UART_RX_LOCATION), (os_param_t)inf_i);
-                /*buffer gonna be freed in user task*/
-
-            } else {
-                /*release cmd data ,because there is no task  gonna accept and release this message*/
-                os_free(i->ppayload);
-            }
-
-        } else if (i->lenth == sizeof(struct cling_health_rev)) {
-            //CLING_DEBUG("cling_health_rev recieved\n");
-            struct cling_health_rev *inf_i =  (struct cling_health_rev *)(i->ppayload);
-            /*post cling device information from ble device to task registered*/
-            if (IS_TASK_VALID(private_data->task_id_reg)) {
-                system_os_post(private_data->task_id_reg, UART_EVENT(EVENT_UART_RX_HEALTH), (os_param_t)inf_i);
-                /*buffer gonna be freed in user task*/
-
-            } else {
-                /*release cmd data ,because there is no task  gonna accept and release this message*/
-                os_free(i->ppayload);
-            }
-
-
-        }
-        /*release data object transmitted from mac layer*/
-        os_free(i);
-#else
-        if (i->lenth == CLING_ID_LENTH + CLING_MAC_LENTH + CLING_RSSI_LENTH) {
-
-        } else {
-            //uart0_tx_buffer("hello", 5);
-        }
-#endif
-
     }
+    /*release data object transmitted from mac layer*/
+    os_free(i);
+
+
+
 }
 #endif
 
@@ -309,15 +279,14 @@ cling_data_recieved_poll(CLASS(cling_protocol) *arg)
 #if 1
 
 LOCAL bool ICACHE_FLASH_ATTR
-cling_data_send(CLASS(cling_protocol) *arg, char *pinf, size_t lenth)
+cling_data_send(CLASS(massage_protocol) *arg, char *pinf, size_t lenth)
 {
 
-    struct mac_layer_payload_rev *i = NULL;
     /*malloc corresponed dparameter buffer*/
     struct cling_protocol_data *private_data = (struct cling_protocol_data*)(arg->user_data);
     assert(private_data);
 
-    mac_send_payload((char*)pinf, lenth);
+    massage_mac_send_payload((char*)pinf, lenth, PACKAGE_HIGH_FIVEBYTES);
 
 }
 #endif
@@ -329,7 +298,7 @@ cling_data_send(CLASS(cling_protocol) *arg, char *pinf, size_t lenth)
  * Parameters   : none
  * Returns      : none
 *******************************************************************************/
-#if 1
+#if 0
 
 void ICACHE_FLASH_ATTR
 cling_data_init(void)
@@ -337,5 +306,6 @@ cling_data_init(void)
 
 }
 #endif
+
 
 

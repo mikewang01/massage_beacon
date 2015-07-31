@@ -93,7 +93,7 @@ spi_hardware_init()
 #if 1
     //init SPI bus
     spi_init_gpio(SPI_DEV, SPI_CLK_USE_DIV);
-    spi_clock(SPI_DEV, 2, 4); //10MHz
+    spi_clock(SPI_DEV, 4, 4); //5MHz
     spi_tx_byte_order(SPI_DEV, SPI_BYTE_ORDER_HIGH_TO_LOW);
     spi_rx_byte_order(SPI_DEV, SPI_BYTE_ORDER_HIGH_TO_LOW);
     SET_PERI_REG_MASK(SPI_USER(SPI_DEV), SPI_CS_SETUP|SPI_CS_HOLD);

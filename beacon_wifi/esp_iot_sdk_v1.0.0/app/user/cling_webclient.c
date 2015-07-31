@@ -103,7 +103,7 @@ LOCAL struct softap_config *ap_conf = NULL;
 LOCAL CLASS(hmac_sha1) *signature_obj;
 LOCAL CLASS(timestamp_json) *ts_req_obj = NULL;
 LOCAL CLASS(sys_timestamp)  *timestamp_mgr_obj = NULL;
-LOCAL CLASS(cling_uart)  *cling_uart_obj = NULL;
+LOCAL CLASS(cling_protocol)  *cling_uart_obj = NULL;
 LOCAL CLASS(cling_inf_upload)  *cling_upload_json_obj = NULL;
 LOCAL CLASS(cling_health_data) *health_data_obj = NULL;
 
@@ -678,7 +678,7 @@ user_task_data_process(os_event_t *e)
 void ICACHE_FLASH_ATTR
 user_task_data_process_init(void)
 {
-    NEW(cling_uart_obj, cling_uart);
+    NEW(cling_uart_obj, cling_protocol);
     CLING_DEBUG("SDK version:%s\n", system_get_sdk_version());
     messge_queue = (os_event_t *)os_malloc(sizeof(os_event_t)*TEST_QUEUE_LEN);
     system_os_task(user_task_data_process, WEB_CLIIENT_TASK_ID, messge_queue, TEST_QUEUE_LEN);

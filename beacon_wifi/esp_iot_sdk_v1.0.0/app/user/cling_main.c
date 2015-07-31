@@ -42,6 +42,7 @@ unsigned int default_private_key_len = 0;
 #include "io_assignment.h"
 #include "oop_hal.h"
 #include "protocol/protocol_cmd.h"
+#include "protocol/massage_cmd.h"
 
 /******************************************************************************
  * FunctionName : user_init
@@ -59,17 +60,21 @@ void uart_init(UartBautRate uart0_br, UartBautRate uart1_br);
 
 void user_init(void)
 {
-		CLASS(cling_uart) *cling_uart_obj;
-		NEW(cling_uart_obj, cling_uart);
+		CLASS(cling_protocol) *cling_uart_obj;
+		CLASS(massage_protocol) *pp;
+		NEW(pp, massage_protocol);
+		NEW(cling_uart_obj, cling_protocol);
 		//char *a = "00003141592653";
 		char temp[20] = {0};
 		//char b[64]={0x7d, 0x00, 0x7e,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25};
 		wifi_set_opmode(STATION_MODE);
         CLING_WIFI_INDICATOR_LED_INSTALL();
 		uart_init(BIT_RATE_115200,BIT_RATE_115200);
+		ETS_UART_INTR_ENABLE();
 			//while(1){
 		char a[]={1,2,3,4};
 		cling_uart_obj->send_data(cling_uart_obj, a , 4);
+		pp->send_data(pp, "1" , 1);
 	   //	os_delay_us(10000000);
 		CLING_DEBUG("DATA SENDED\n");
   	//}

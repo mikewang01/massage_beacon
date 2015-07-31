@@ -22,4 +22,4 @@
  ../include/cling_para_interface.h ../include/io_assignment.h \
  ../include/protocol/protocol_cmd.h ../../include/C_types.h \
  ../include/cling_healthdata_json.h ../include/cling_rtc.h \
- ../../include/os_type.h
+ ../../include/os_type.h ../include/protocol/massage_cmd.h

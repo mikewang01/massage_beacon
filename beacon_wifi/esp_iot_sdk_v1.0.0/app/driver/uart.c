@@ -181,7 +181,7 @@ void uart_rx_intr_enable(uint8 uart_no)
  * Returns      : NONE
 *******************************************************************************/
 void uart0_tx_buffer(uint8 *buf, uint16 len);
-int receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para);
+int massage_receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para);
 extern int flasg_test;
 
 LOCAL void
@@ -207,7 +207,7 @@ uart0_rx_intr_handler(void *para)
 		uart_rx_intr_disable(UART0);
 		size_t fifo_len = (READ_PERI_REG(UART_STATUS(UART0))>>UART_RXFIFO_CNT_S)&UART_RXFIFO_CNT;
 	 	for (lenth = 0; lenth < fifo_len; lenth++){
-			receive_one_char_callback(READ_PERI_REG(UART_FIFO(UART0)) & 0xFF, pRxBuff);
+			massage_receive_one_char_callback(READ_PERI_REG(UART_FIFO(UART0)) & 0xFF, pRxBuff);
 		}
         WRITE_PERI_REG(UART_INT_CLR(UART0), UART_RXFIFO_FULL_INT_CLR);
 		
@@ -217,7 +217,7 @@ uart0_rx_intr_handler(void *para)
 		/*get data from buffer and peocess one by one byte*/
 		size_t fifo_len = (READ_PERI_REG(UART_STATUS(UART0))>>UART_RXFIFO_CNT_S)&UART_RXFIFO_CNT;
 		for (lenth = 0; lenth < fifo_len; lenth++){
-			receive_one_char_callback(READ_PERI_REG(UART_FIFO(UART0)) & 0xFF, pRxBuff);
+			massage_receive_one_char_callback(READ_PERI_REG(UART_FIFO(UART0)) & 0xFF, pRxBuff);
 		}
 		    if(flasg_test)
 			CLING_DEBUG("recieved data during sending\n");
