@@ -48,6 +48,8 @@
 /*HTTP UART TIME STAMP MANAGE TASK*/
 #define  WEB_CLIIENT_TASK_ID  USER_TASK_PRIO_0
 #define  MISC_TASK_ID		  USER_TASK_PRIO_1
+#define  MASSAGE_TASK_ID	  USER_TASK_PRIO_2
+
 /*encryption key*/
 #define 	SHA1_KEY  "5EHdd8_334dyUjjddleqH6YHHm"
 

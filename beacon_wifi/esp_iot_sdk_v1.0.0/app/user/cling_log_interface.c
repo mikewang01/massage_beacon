@@ -94,7 +94,7 @@ init_cling_log_interface(CLASS(cling_log_interface) *arg)
 	arg->de_init = delete_cling_log_interface;
 	arg->print_log = print_log;
 	arg->read_log =  read_log;
-
+ 
 	return TRUE;
 }
 #endif

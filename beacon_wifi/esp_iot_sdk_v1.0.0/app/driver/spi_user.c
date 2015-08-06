@@ -89,7 +89,6 @@ spi_init_gpio(uint8 spi_no, uint8 sysclk_as_spiclk)
         PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDI_U, 2); //GPIO12 is HSPI MISO pin (Master Data In)
         PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTCK_U, 2); //GPIO 13 is HSPI MOSI pin (Master Data Out)
         PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTMS_U, 2); //GPIO14 is HSPI CLK pin (Clock)
-
         PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDO_U, 2); //GPIO15 is HSPI CS pin (Chip Select / Slave Select)
 #endif
     }
@@ -195,6 +194,99 @@ spi_rx_byte_order(uint8 spi_no, uint8 byte_order)
         CLEAR_PERI_REG_MASK(SPI_USER(spi_no), SPI_RD_BYTE_ORDER);
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Function Name: spi_transaction
+//   Description: SPI transaction function
+//    Parameters: spi_no - SPI (0) or HSPI (1)
+//				  cmd_bits - actual number of bits to transmit
+//				  cmd_data - command data
+//				  addr_bits - actual number of bits to transmit
+//				  addr_data - address data
+//				  dout_bits - actual number of bits to transmit
+//				  dout_data - output data
+//				  din_bits - actual number of bits to receive
+//
+//		 Returns: read data - uint32 containing read in data only if RX was set
+//				  0 - something went wrong (or actual read data was 0)
+//				  1 - data sent ok (or actual read data is 1)
+//				  Note: all data is assumed to be stored in the lower bits of
+//				  the data variables (for anything <32 bits).
+//
+////////////////////////////////////////////////////////////////////////////////
+
+int ICACHE_FLASH_ATTR
+spi_multi_bytes_read(uint8 spi_no, char* din_data, uint32 din_bits)
+{
+    if(spi_no > 1) return 0;	//Check for a valid SPI
+
+    //code for custom Chip Select as GPIO PIN here
+
+    while(spi_busy(spi_no)); //wait for SPI to be ready
+
+    //########## Enable SPI Functions ##########//
+    //disable MOSI, MISO, ADDR, COMMAND, DUMMY in case previously set.
+    CLEAR_PERI_REG_MASK(SPI_USER(spi_no), SPI_USR_MOSI|SPI_USR_MISO|SPI_USR_COMMAND|SPI_USR_ADDR|SPI_USR_DUMMY);
+	    //enable functions based on number of bits. 0 bits = disabled.
+    //This is rather inefficient but allows for a very generic function.
+    //CMD ADDR and MOSI are set below to save on an extra if statement.
+//	if(cmd_bits) {SET_PERI_REG_MASK(SPI_USER(spi_no), SPI_USR_COMMAND);}
+//	if(addr_bits) {SET_PERI_REG_MASK(SPI_USER(spi_no), SPI_USR_ADDR);}
+
+    //enable functions based on number of bits. 0 bits = disabled.
+    //This is rather inefficient but allows for a very generic function.
+    //CMD ADDR and MOSI are set below to save on an extra if statement.
+    //	if(cmd_bits) {SET_PERI_REG_MASK(SPI_USER(spi_no), SPI_USR_COMMAND);}
+    //	if(addr_bits) {SET_PERI_REG_MASK(SPI_USER(spi_no), SPI_USR_ADDR);}
+    if(din_bits) {
+        SET_PERI_REG_MASK(SPI_USER(spi_no), SPI_USR_MISO);
+    }
+
+    //########## Setup Bitlengths ##########//
+    WRITE_PERI_REG(SPI_USER1(spi_no), ((0-1)&SPI_USR_ADDR_BITLEN)<<SPI_USR_ADDR_BITLEN_S | //Number of bits in Address
+                   ((0-1)&SPI_USR_MOSI_BITLEN)<<SPI_USR_MOSI_BITLEN_S | //Number of bits to Send
+                   ((din_bits-1)&SPI_USR_MISO_BITLEN)<<SPI_USR_MISO_BITLEN_S |  //Number of bits to receive
+                   ((0-1)&SPI_USR_DUMMY_CYCLELEN)<<SPI_USR_DUMMY_CYCLELEN_S); //Number of Dummy bits to insert
+
+    //########## Begin SPI Transaction ##########//
+    SET_PERI_REG_MASK(SPI_CMD(spi_no), SPI_USR);
+    //########## END SECTION ##########//
+
+    //########## Return DIN data ##########//
+    if(din_bits) {
+        while(spi_busy(spi_no));	//wait for SPI transaction to complete
+#if 1
+        if(READ_PERI_REG(SPI_USER(spi_no))&SPI_RD_BYTE_ORDER) {
+            int i = 0, m=0;
+            for(; i< ((din_bits>>3)>>2); i++ ) {
+                uint32 k = READ_PERI_REG(SPI_W0(spi_no) + (i<<2));
+                din_data[(i<<2)+3] = (uint8)(k>>0);
+                din_data[(i<<2)+2] = (uint8)(k>>8);
+                din_data[(i<<2)+1] = (uint8)(k>>16);
+                din_data[(i<<2)+0] = (uint8)(k>>24);
+                //WRITE_PERI_REG(SPI_W0(spi_no) + (i<<2), (dout_data[(i<<2)+0]<<24)|(dout_data[(i<<2)+1]<<16)|(dout_data[(i<<2)+2]<<8)|(dout_data[(i<<2)+3]<<0));
+            }
+
+            if((din_bits>>3)%(sizeof(uint32))) {
+                uint32 t = SPI_W0(spi_no) + (i<<2);
+                for(m = 0; m < ((din_bits>>3)%(sizeof(uint32))); m++) {
+
+                    din_data[(i<<2)+m] = t>>((sizeof(uint32) - m - 1) <<3);
+
+                }
+                //WRITE_PERI_REG(SPI_W0(spi_no) + (i<<2), t);
+            }
+
+
+        }
+#endif
+
+    }
+    return TRUE;
+
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -276,20 +368,20 @@ spi_transaction(uint8 spi_no, uint8 cmd_bits, uint16 cmd_data, uint32 addr_bits,
         SET_PERI_REG_MASK(SPI_USER(spi_no), SPI_USR_MOSI); //enable MOSI function in SPI module
         //copy data to W0
         if(READ_PERI_REG(SPI_USER(spi_no))&SPI_WR_BYTE_ORDER) {
-           int i = 0, m=0;
-                for(; i< ((dout_bits>>3)>>2); i++ ) {
-                    WRITE_PERI_REG(SPI_W0(spi_no) + (i<<2), (dout_data[(i<<2)+0]<<24)|(dout_data[(i<<2)+1]<<16)|(dout_data[(i<<2)+2]<<8)|(dout_data[(i<<2)+3]<<0));
-                }
+            int i = 0, m=0;
+            for(; i< ((dout_bits>>3)>>2); i++ ) {
+                WRITE_PERI_REG(SPI_W0(spi_no) + (i<<2), (dout_data[(i<<2)+0]<<24)|(dout_data[(i<<2)+1]<<16)|(dout_data[(i<<2)+2]<<8)|(dout_data[(i<<2)+3]<<0));
+            }
 
-                if((dout_bits>>3)%(sizeof(uint32))) {
-                    uint32 t = 0;
-                    for(m = 0; m < ((dout_bits>>3)%(sizeof(uint32))); m++) {
-                      
-                        t |= dout_data[(i<<2)+m]<<((sizeof(uint32) - m - 1) <<3);
-						
-                    }
-                    WRITE_PERI_REG(SPI_W0(spi_no) + (i<<2), t);
+            if((dout_bits>>3)%(sizeof(uint32))) {
+                uint32 t = 0;
+                for(m = 0; m < ((dout_bits>>3)%(sizeof(uint32))); m++) {
+
+                    t |= dout_data[(i<<2)+m]<<((sizeof(uint32) - m - 1) <<3);
+
                 }
+                WRITE_PERI_REG(SPI_W0(spi_no) + (i<<2), t);
+            }
         } else {
 
             uint8 dout_extra_bits = dout_bits%8;
@@ -331,6 +423,7 @@ spi_transaction(uint8 spi_no, uint8 cmd_bits, uint16 cmd_data, uint32 addr_bits,
         while(spi_busy(spi_no));	//wait for SPI transaction to complete
 
         if(READ_PERI_REG(SPI_USER(spi_no))&SPI_RD_BYTE_ORDER) {
+
             return READ_PERI_REG(SPI_W0(spi_no)) >> (32-din_bits); //Assuming data in is written to MSB. TBC
         } else {
             return READ_PERI_REG(SPI_W0(spi_no)); //Read in the same way as DOUT is sent. Note existing contents of SPI_W0 remain unless overwritten!
@@ -343,6 +436,8 @@ spi_transaction(uint8 spi_no, uint8 cmd_bits, uint16 cmd_data, uint32 addr_bits,
     //Transaction completed
     return 1; //success
 }
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 

@@ -276,6 +276,7 @@ received_data_process(RcvMsgBuff *para)
         /*add messge to reveived messge list waiting for processing*/
         add_payload2revlist(para->pRcvMsgBuff + 1, (para->pWritePos - para->pRcvMsgBuff - 1));
         /*after receieving ,ssend back ack package*/
+		//os_delay_us(1000);
         send_package_assemble(NULL, PACKAGE_ACK);
     }else if (para->pRcvMsgBuff[0] == PACKAGE_CMD){
 
@@ -515,7 +516,7 @@ mac_sendlist_mantain_demon()
             if (payload_temp->resend_times < RESEND_TIMES_UPPER_THREADHOLD) {
                 send_package_assemble(payload_temp, PACKAGE_DATA);
                // MAC_SEND_BUFFER(payload_temp->, position);
-                payload_temp->resend_times ++;
+               
             } else {
 
 				CLING_DEBUG("send time up\n");
@@ -608,6 +609,7 @@ send_package_assemble(struct mac_layer_payload_send *payload_temp, enum package_
         char ack_buffer[] = {PACKAGE_HEADER_SYMBOL, PACKAGE_ACK, PACKAGE_END_SYMBOL};
         /*send ddta to client*/
         MAC_SEND_BUFFER(ack_buffer, sizeof(ack_buffer));
+		
     } else if (type == PACKAGE_DATA || type == PACKAGE_CMD) {
         char data_buffer[2048];
         uint16 position = 0;
@@ -637,6 +639,7 @@ send_package_assemble(struct mac_layer_payload_send *payload_temp, enum package_
         position++;
 
         MAC_SEND_BUFFER(data_buffer, position);
+		payload_temp->resend_times ++;
     }
 
 

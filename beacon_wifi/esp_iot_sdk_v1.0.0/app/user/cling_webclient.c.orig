@@ -28,7 +28,7 @@
 #include "user_json.h"
 #include "driver/uart.h"
 
-#include "uart_protocol/uart_protocol_cmd.h"
+#include "protocol/protocol_cmd.h"
 #include "cling_fifo.h"
 #include "cling_ap_para.h"
 #include  "io_assignment.h"
@@ -74,7 +74,7 @@
 */
 struct json_send_buffer {
     char *pbuffer;
-	uint32 time_stamp;
+    uint32 time_stamp;
     size_t lenth;
 };
 
@@ -103,7 +103,7 @@ LOCAL struct softap_config *ap_conf = NULL;
 LOCAL CLASS(hmac_sha1) *signature_obj;
 LOCAL CLASS(timestamp_json) *ts_req_obj = NULL;
 LOCAL CLASS(sys_timestamp)  *timestamp_mgr_obj = NULL;
-LOCAL CLASS(cling_uart)  *cling_uart_obj = NULL;
+LOCAL CLASS(cling_protocol)  *cling_uart_obj = NULL;
 LOCAL CLASS(cling_inf_upload)  *cling_upload_json_obj = NULL;
 LOCAL CLASS(cling_health_data) *health_data_obj = NULL;
 
@@ -218,7 +218,7 @@ ipc_event_process(os_event_t *e)
     switch (GET_EVENT_TYPE(e->sig)) {
 
     case EVENT_INIT:
-        CLING_DEBUG("task http start\n");
+{
         struct station_config *p =  ( struct station_config*)(e->par);
         station_conf = *p;
         os_free(p);
@@ -241,7 +241,7 @@ ipc_event_process(os_event_t *e)
         cling_data_flow_led_init();
         TRIGGER_TIMESTAMP_SENDING(fifo_json_state);
         http_obj->connect_ap(http_obj);
-
+    }
         break;
     case EVENT_RESET:
         CLING_DEBUG("ipc reset event recieved\n");
@@ -313,7 +313,7 @@ http_event_process(os_event_t *e)
                     os_free(i->pbuffer);
                     CLING_FIFO_OUT(http_json_send_fifo, (i), struct json_send_buffer);
                     CLING_DEBUG("package the data\n");
-                }                                
+                }
 
                 /*get json data from cling_upload_json_obj object*/
                 cling_upload_json_obj->get_request_js(cling_upload_json_obj, send_buffer);
@@ -344,14 +344,14 @@ http_event_process(os_event_t *e)
 
                 while (i->pbuffer != NULL) {
                     struct cling_health_rev *pbuffer = (struct cling_health_rev *)i->pbuffer;
-					a.date = pbuffer->date;
+                    a.date = pbuffer->date;
                     a.total_steps = TANSFER_ENDIAN_16(pbuffer->steps);
                     a.total_distance = TANSFER_ENDIAN_16(pbuffer->distance);
                     a.calories_total = TANSFER_ENDIAN_16(pbuffer->calories);
                     a.sleep_total = TANSFER_ENDIAN_16(pbuffer->sleep_time);
                     a.heart_rate = pbuffer->heart_rate;
                     a.skin_temp = pbuffer->skin_temp;
-					a.beacon_timestamp = i->time_stamp;
+                    a.beacon_timestamp = i->time_stamp;
                     //cling_upload_json_obj->set_cling_inf(cling_upload_json_obj, pbuffer->cling_id, pbuffer->cling_mac, pbuffer->cling_rssi[0], k);
                     health_data_obj->set_health_inf(health_data_obj,a, "ECIG", pbuffer->cling_mac, k);
                     /*recollect ram source*/
@@ -386,24 +386,24 @@ http_event_process(os_event_t *e)
         cling_data_flow_led_set(!CLING_DATA_FLOW_LED_ACTIVE_LEVEL);
 
         CLING_DEBUG("json data = %s\n",(char*)(e->par));
-        
-            /*parse json text recievd from server*/
-            NEW(ts_req_obj, timestamp_json);
-            ts_req_obj->get_timestamp_js(ts_req_obj, &i, pbuffer);
-            CLING_DEBUG("delete object ts_req_obj\n");
-            /*delete timestamp_json object*/
-            DELETE(ts_req_obj, timestamp_json);
+
+        /*parse json text recievd from server*/
+        NEW(ts_req_obj, timestamp_json);
+        ts_req_obj->get_timestamp_js(ts_req_obj, &i, pbuffer);
+        CLING_DEBUG("delete object ts_req_obj\n");
+        /*delete timestamp_json object*/
+        DELETE(ts_req_obj, timestamp_json);
 
 #if 1
-            timestamp_mgr_obj->get_current_timestamp(timestamp_mgr_obj, &m);
+        timestamp_mgr_obj->get_current_timestamp(timestamp_mgr_obj, &m);
 
-            CLING_DEBUG("time_stamp_rtc = %d\n", m);
+        CLING_DEBUG("time_stamp_rtc = %d\n", m);
 #endif
-            timestamp_mgr_obj->set_current_timestamp(timestamp_mgr_obj, i);
+        timestamp_mgr_obj->set_current_timestamp(timestamp_mgr_obj, i);
 #if 1
 
-            CLING_DEBUG("time_stamp_from_server = %d\n", i);
-			if (time_flag == 0) {
+        CLING_DEBUG("time_stamp_from_server = %d\n", i);
+        if (time_flag == 0) {
 
             time_flag = 1;
 
@@ -479,7 +479,7 @@ timestamp_event_process(os_event_t *e)
  * Parameters   : os_event_t *e : event recieved
  * Returns      : none
 *******************************************************************************/
-
+int flasg_test =0;
 LOCAL void ICACHE_FLASH_ATTR
 uart_event_process(os_event_t *e)
 {
@@ -517,19 +517,19 @@ uart_event_process(os_event_t *e)
 
     case EVENT_UART_RX_HEALTH: {
 
-		uint32 k=0;
-	    struct json_send_buffer i;
-		
+        uint32 k=0;
+        struct json_send_buffer i;
+
         char *pbuffer = (char*)(e->par);
-		timestamp_mgr_obj->get_current_timestamp(timestamp_mgr_obj, &k);
+        timestamp_mgr_obj->get_current_timestamp(timestamp_mgr_obj, &k);
         /*once recieved message from uart ,tranform it into json format*/
-		/*sync time stamp in healthdata to mark its upload time*/
+        /*sync time stamp in healthdata to mark its upload time*/
         /*used to stored into fifo*/
- 
+
         CLING_DEBUG("free heap size health = %d\n",system_get_free_heap_size());
         i.pbuffer = (char*)pbuffer;
         i.lenth = sizeof(pbuffer);
-		i.time_stamp = k;
+        i.time_stamp = k;
         /*push into fifo which will be sended once connected with server*/
         CLING_FIFO_IN(health_json_send_fifo, i, struct json_send_buffer);
 
@@ -544,16 +544,22 @@ uart_event_process(os_event_t *e)
         //os_free(pbuffer);
     }
     break;
-	
-	case EVENT_UART_RX_CMD:{
-		uint8 cmd = e->par;
-		uint32 k;
-		CLING_DEBUG("task uart cmd recieved= %d\n", cmd);
-		timestamp_mgr_obj->get_current_timestamp(timestamp_mgr_obj, &k);
-		cling_uart_obj->send_data(cling_uart_obj, (char*)&k , sizeof(k));
-	}
 
-	break;
+    case EVENT_UART_RX_CMD: {
+        uint8 cmd = e->par;
+        uint32 k;
+        flasg_test =1;
+        CLING_DEBUG("task uart cmd recieved= %d\n", cmd);
+        timestamp_mgr_obj->get_current_timestamp(timestamp_mgr_obj, &k);
+        CLING_DEBUG("timestamp_mgr_obj->get_current_timestamp(timestamp_mgr_obj, &k);\n");
+        cling_uart_obj->disable_recieving(cling_uart_obj);
+        cling_uart_obj->send_data(cling_uart_obj, (char*)&k , sizeof(k));
+        cling_uart_obj->enable_recieving(cling_uart_obj);
+        CLING_DEBUG("cling_uart_obj->send_data(cling_uart_obj, (char*)\n");
+        flasg_test =0;
+    }
+
+    break;
 
     default:
         break;
@@ -672,11 +678,15 @@ user_task_data_process(os_event_t *e)
 void ICACHE_FLASH_ATTR
 user_task_data_process_init(void)
 {
-    NEW(cling_uart_obj, cling_uart);
+    /* add by mike, 2015-08-05, Ô­Òò: move cling uart object new here for the resason of affecting by smart config */
+    NEW(cling_uart_obj, cling_protocol);
     CLING_DEBUG("SDK version:%s\n", system_get_sdk_version());
     messge_queue = (os_event_t *)os_malloc(sizeof(os_event_t)*TEST_QUEUE_LEN);
     system_os_task(user_task_data_process, WEB_CLIIENT_TASK_ID, messge_queue, TEST_QUEUE_LEN);
     FIFO_JSON_STATE_INITIATE(fifo_json_state);
+    char a[]= {1,2,3,4};
+    cling_uart_obj->send_data(cling_uart_obj, a , 4);
+    CLING_DEBUG("task http start\n");
 }
 /******************************************************************************
  * FunctionName : http_fifo_checkout_callback
@@ -742,7 +752,7 @@ location_fifo_timer_reset(void)
 LOCAL void ICACHE_FLASH_ATTR
 health_fifo_checkout_callback(void)
 {
-	CLING_DEBUG("health_fifo_checkout_callback\n");
+    CLING_DEBUG("health_fifo_checkout_callback\n");
 
     /*there are some message eixsting in health json send fifo*/
     if (!IS_CLING_FIFO_EMPTY(health_json_send_fifo)) {

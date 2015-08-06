@@ -103,7 +103,7 @@ LOCAL struct softap_config *ap_conf = NULL;
 LOCAL CLASS(hmac_sha1) *signature_obj;
 LOCAL CLASS(timestamp_json) *ts_req_obj = NULL;
 LOCAL CLASS(sys_timestamp)  *timestamp_mgr_obj = NULL;
-LOCAL CLASS(cling_protocol)  *cling_uart_obj = NULL;
+LOCAL CLASS(cling_protocol)  *cling_spi_protocol_obj = NULL;
 LOCAL CLASS(cling_inf_upload)  *cling_upload_json_obj = NULL;
 LOCAL CLASS(cling_health_data) *health_data_obj = NULL;
 
@@ -196,7 +196,7 @@ cling_reset_callback(uint8 state)
 {
     /*lose connection with ap*/
     if(state != STATION_GOT_IP) {
-        cling_uart_obj->disable_recieving(cling_uart_obj);
+        cling_spi_protocol_obj->disable_recieving(cling_spi_protocol_obj);
         time_flag = 0;
         /*notice misc task the information of connecting to ap*/
         system_os_post(WEB_CLIIENT_TASK_ID,  IPC_EVENT(EVENT_RESET), 0);
@@ -217,8 +217,7 @@ ipc_event_process(os_event_t *e)
     char send_buffer[jsonSize];
     switch (GET_EVENT_TYPE(e->sig)) {
 
-    case EVENT_INIT:
-        CLING_DEBUG("task http start\n");
+    case EVENT_INIT: {
         struct station_config *p =  ( struct station_config*)(e->par);
         station_conf = *p;
         os_free(p);
@@ -233,7 +232,7 @@ ipc_event_process(os_event_t *e)
         /*register task to timestamp object to recieve message*/
         timestamp_mgr_obj->msgrev_register(timestamp_mgr_obj, WEB_CLIIENT_TASK_ID);
         /*register task to cling uart to recieve message */
-        cling_uart_obj->task_register(cling_uart_obj, WEB_CLIIENT_TASK_ID);
+        cling_spi_protocol_obj->task_register(cling_spi_protocol_obj, WEB_CLIIENT_TASK_ID);
         CLING_DEBUG("ssid= %s password = %s \n",station_conf.ssid ,station_conf.password);
         http_obj->config(http_obj, station_conf.ssid, station_conf.password);
         CLING_DEBUG("connect to ap\n");
@@ -241,8 +240,8 @@ ipc_event_process(os_event_t *e)
         cling_data_flow_led_init();
         TRIGGER_TIMESTAMP_SENDING(fifo_json_state);
         http_obj->connect_ap(http_obj);
-
-        break;
+    }
+    break;
     case EVENT_RESET:
         CLING_DEBUG("ipc reset event recieved\n");
         CLING_DEBUG("connect to ap\n");
@@ -251,7 +250,7 @@ ipc_event_process(os_event_t *e)
     case EVENT_OBJECT_RESET:
         CLING_DEBUG(" webclient ipc_event_process EVENT_OBJECT_RESET\n");
         web_client_timer_stop();
-        cling_uart_obj->disable_recieving(cling_uart_obj);
+        cling_spi_protocol_obj->disable_recieving(cling_spi_protocol_obj);
 
         break;
     default:
@@ -321,7 +320,7 @@ http_event_process(os_event_t *e)
                 /*reset the timer to recollect fifo state*/
                 location_fifo_timer_reset();
                 http_obj->send(http_obj, send_buffer, os_strlen(send_buffer));
-                cling_uart_obj->enable_recieving(cling_uart_obj);
+                cling_spi_protocol_obj->enable_recieving(cling_spi_protocol_obj);
 
                 cling_data_flow_led_set(CLING_DATA_FLOW_LED_ACTIVE_LEVEL);
 
@@ -364,7 +363,7 @@ http_event_process(os_event_t *e)
                 DELETE(health_data_obj, cling_health_data);
                 health_fifo_timer_reset();
                 http_obj->send(http_obj, send_buffer, os_strlen(send_buffer));
-                cling_uart_obj->enable_recieving(cling_uart_obj);
+                cling_spi_protocol_obj->enable_recieving(cling_spi_protocol_obj);
                 /*trigger the data flow led*/
                 cling_data_flow_led_set(CLING_DATA_FLOW_LED_ACTIVE_LEVEL);
                 /*change the state of fifo*/
@@ -412,7 +411,7 @@ http_event_process(os_event_t *e)
             location_fifo_timer_start();
             health_fifo_timer_start();
 
-            cling_uart_obj->enable_recieving(cling_uart_obj);
+            cling_spi_protocol_obj->enable_recieving(cling_spi_protocol_obj);
 
         }
 #if 0
@@ -548,15 +547,15 @@ uart_event_process(os_event_t *e)
     case EVENT_UART_RX_CMD: {
         uint8 cmd = e->par;
         uint32 k;
-		 flasg_test =1;
+        flasg_test =1;
         CLING_DEBUG("task uart cmd recieved= %d\n", cmd);
         timestamp_mgr_obj->get_current_timestamp(timestamp_mgr_obj, &k);
-		CLING_DEBUG("timestamp_mgr_obj->get_current_timestamp(timestamp_mgr_obj, &k);\n");
-		 cling_uart_obj->disable_recieving(cling_uart_obj);
-        cling_uart_obj->send_data(cling_uart_obj, (char*)&k , sizeof(k));
-		 cling_uart_obj->enable_recieving(cling_uart_obj);
-		CLING_DEBUG("cling_uart_obj->send_data(cling_uart_obj, (char*)\n");
-		 flasg_test =0;
+        CLING_DEBUG("timestamp_mgr_obj->get_current_timestamp(timestamp_mgr_obj, &k);\n");
+        cling_spi_protocol_obj->disable_recieving(cling_spi_protocol_obj);
+        cling_spi_protocol_obj->send_data(cling_spi_protocol_obj, (char*)&k , sizeof(k));
+        cling_spi_protocol_obj->enable_recieving(cling_spi_protocol_obj);
+        CLING_DEBUG("cling_spi_protocol_obj->send_data(cling_spi_protocol_obj, (char*)\n");
+        flasg_test =0;
     }
 
     break;
@@ -599,7 +598,7 @@ timer_event_process(os_event_t *e)
 
                 CLING_DEBUG("EVENT_HTTP_FIFO_CHECK HTTP DISCONNECT\n");
                 http_obj->connect_ap(http_obj);
-                cling_uart_obj->disable_recieving(cling_uart_obj);
+                cling_spi_protocol_obj->disable_recieving(cling_spi_protocol_obj);
             }
         }
 
@@ -617,7 +616,7 @@ timer_event_process(os_event_t *e)
             if (state == HTTP_DISCONNECT) {
 
                 http_obj->connect_ap(http_obj);
-                cling_uart_obj->disable_recieving(cling_uart_obj);
+                cling_spi_protocol_obj->disable_recieving(cling_spi_protocol_obj);
             }
         }
 
@@ -678,12 +677,15 @@ user_task_data_process(os_event_t *e)
 void ICACHE_FLASH_ATTR
 user_task_data_process_init(void)
 {
-    NEW(cling_uart_obj, cling_protocol);
+    /* add by mike, 2015-08-05, Ô­Òò: move cling uart object new here for the resason of affecting by smart config */
+    NEW(cling_spi_protocol_obj, cling_protocol);
     CLING_DEBUG("SDK version:%s\n", system_get_sdk_version());
     messge_queue = (os_event_t *)os_malloc(sizeof(os_event_t)*TEST_QUEUE_LEN);
     system_os_task(user_task_data_process, WEB_CLIIENT_TASK_ID, messge_queue, TEST_QUEUE_LEN);
     FIFO_JSON_STATE_INITIATE(fifo_json_state);
-
+    //char a[]= {1,2,3,4};
+   // cling_spi_protocol_obj->send_data(cling_spi_protocol_obj, a , 4);
+   // CLING_DEBUG("task http start\n");
 }
 /******************************************************************************
  * FunctionName : http_fifo_checkout_callback
@@ -696,6 +698,9 @@ LOCAL void ICACHE_FLASH_ATTR
 location_fifo_checkout_callback(void)
 {
     CLING_DEBUG("location_fifo_checkout_callback\n");
+	
+	system_os_post(MASSAGE_TASK_ID,  IPC_EVENT(EVENT_CLING_HEALTH_RECIEVED), 1);
+	//system_os_post( ,os_signal_t sig,os_param_t par)
     /*there are some message eixsting in http json send fifo*/
     if (!IS_CLING_FIFO_EMPTY(http_json_send_fifo)) {
         CLING_DEBUG("IS_CLING_FIFO_EMPTY(http_json_send_fifo==========\n");
@@ -817,7 +822,7 @@ LOCAL void ICACHE_FLASH_ATTR
 cling_connect_start_callback()
 {
     CLING_DEBUG("cling_connect_start_callback\n");
-    cling_uart_obj->disable_recieving(cling_uart_obj);
+    cling_spi_protocol_obj->disable_recieving(cling_spi_protocol_obj);
     return;
 }
 

@@ -48,7 +48,10 @@ struct interact{
 	void (*smart_config_call_back)(void *arg);/*任务完成回调注册函数*/
 };
 
-	
+struct station_state_record{
+	struct station_config t;
+	uint16 reset_times;
+};	
 /*********************************************************************
 * GLOBAL VARIABLES
 */
@@ -58,7 +61,7 @@ struct interact{
 * LOCAL VARIABLES
 */
 LOCAL CLASS(cling_ap_para) *this = NULL;/*http service layer object*/
-LOCAL struct station_config *sta_conf = NULL;
+LOCAL struct station_state_record *cling_sation_para_record = NULL;
 
 LOCAL bool delete_cling_ap_para(CLASS(cling_ap_para) *arg);
 LOCAL bool cling_ap_para_start_smartconfig(CLASS(cling_ap_para) *arg);
@@ -126,19 +129,20 @@ cling_smartconfig_led_stop(void)
 LOCAL bool ICACHE_FLASH_ATTR
 cling_load_ap_param()
 {
-    struct station_config config = {0};
+    struct station_state_record config = {0};
 	
-	this->op_para_p->load_parameter(CLING_PARAM_AP, (char *)&config, sizeof(struct station_config));
+	this->op_para_p->load_parameter(CLING_PARAM_AP, (char *)&config, sizeof(struct station_state_record));
 #if 0
     spi_flash_read((CLING_PARAM_START_SEC + CLING_PARAM_AP) * SPI_FLASH_SEC_SIZE,
-                   (uint32 *)&config, sizeof(struct station_config));
+                   (uint32 *)&config, sizeof(struct station_state_record));
 #endif
-	CLING_DEBUG("config.ssid[0]= %02x\r\n", config.ssid[0]);
+	CLING_DEBUG("config.ssid[0]= %02x\r\n system_reset_times = [%d] \r\n", config.t.ssid[0], config.reset_times ++);
 	/*this means there is a ap parameter stored in flash*/
-	if (config.ssid[0] <= '~' && config.ssid[0] >= '!'){
-			sta_conf = (struct station_config *)os_malloc(sizeof(struct station_config));
-			if (NULL != sta_conf){
-			*sta_conf = config;
+	if (config.t.ssid[0] <= '~' && config.t.ssid[0] >= '!'){
+			this->op_para_p->save_parameter(CLING_PARAM_AP, (char *)&config, sizeof(struct station_state_record));
+			cling_sation_para_record = (struct station_state_record *)os_malloc(sizeof(struct station_state_record));
+			if (NULL != cling_sation_para_record){
+			*cling_sation_para_record = config;
 			return TRUE;
 		}
 	}
@@ -152,15 +156,15 @@ cling_load_ap_param()
  * Returns      : none
 *******************************************************************************/
 void ICACHE_FLASH_ATTR
-cling_save_ap_param(struct station_config *p)
+cling_save_ap_param(struct station_state_record *p)
 {
 	if (NULL != p){
-		this->op_para_p->save_parameter(CLING_PARAM_AP, (char *)p, sizeof(struct station_config));
+		this->op_para_p->save_parameter(CLING_PARAM_AP, (char *)p, sizeof(struct station_state_record));
 #if 0
 		spi_flash_erase_sector(CLING_PARAM_START_SEC + CLING_PARAM_AP);
 		/*smart config suceceed*/
 		spi_flash_write((CLING_PARAM_START_SEC + CLING_PARAM_AP) * SPI_FLASH_SEC_SIZE,
-						   (uint32 *)p, sizeof(struct station_config));
+						   (uint32 *)p, sizeof(struct station_state_record));
 #endif
 			
 		}
@@ -177,19 +181,22 @@ LOCAL void ICACHE_FLASH_ATTR
 smartconfig_done(void *arg)
 {
 	
-	sta_conf = (struct station_config *)os_malloc(sizeof(struct station_config));
+	cling_sation_para_record = (struct station_state_record *)os_malloc(sizeof(struct station_state_record));
 	/*smart config sucessfully*/
 	cling_smartconfig_led_stop();
-	if (NULL != sta_conf){
-		*sta_conf = *((struct station_config*)arg);
-		CLING_DEBUG("ssid = %s\n", sta_conf->ssid);
-		cling_save_ap_param(arg);
+	if (NULL != cling_sation_para_record){
+		
+		cling_sation_para_record->t = *((struct station_config*)arg);
+		/* add by mike, 2015-08-05, 原因: after each smart config reset system restart times*/
+		cling_sation_para_record->reset_times = 0;
+		CLING_DEBUG("ssid = %s\n", cling_sation_para_record->t.ssid);
+		cling_save_ap_param(cling_sation_para_record);
 		/*this means ssid existed in flash memory*/
 		struct interact * register_inf = (struct interact*)(this->user_data);
 		if (NULL != register_inf){
 				/*if user callback task existed*/
 			if (NULL != register_inf->smart_config_call_back){
-				register_inf->smart_config_call_back(sta_conf);
+				register_inf->smart_config_call_back((void*)&(cling_sation_para_record->t));
 			}
 		}
 	}
@@ -208,7 +215,7 @@ LOCAL bool ICACHE_FLASH_ATTR
 get_ap_paramater(CLASS(cling_ap_para) *arg, struct station_config *psta)
 {
 	if (psta != NULL){
-		*psta = *sta_conf;
+		*psta = (cling_sation_para_record->t);
 		return TRUE;
 	}
 	return FALSE;
@@ -260,10 +267,10 @@ register_cling_ap_callbackfunc(CLASS(cling_ap_para) *arg, void (*smart_config_ca
 
 bool ICACHE_FLASH_ATTR
 smart_config_key_init(){
-	 PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTCK_U, FUNC_GPIO13);
+	 PIN_FUNC_SELECT(CLING_KEY_SMARTCONFIG_IO_MUX, CLING_KEY_SMARTCONFIG_IO_FUNC);
 	/*Use MTDI pin as GPIO13*/
 	/*set key gpio as input*/
-	 gpio_output_set(0, 0, 0, CLING_KEY_0_IO_NUM);
+	 gpio_output_set(0, 0, 0, CLING_KEY_SMARTCONFIG_IO_NUM);
 }
 
 /******************************************************************************
@@ -291,7 +298,7 @@ cling_smart_config_start(sc_type type, sc_callback_t cb){
 bool ICACHE_FLASH_ATTR
 smart_config_long_press_callback(CLASS(cling_ap_para) *arg){
 	/*this means customer press the key for a long time enter smart config mode*/
-	if (GPIO_INPUT_GET(CLING_KEY_0_IO_NUM) == CLING_KEY_0_ACTIVE_LEVEL){
+	if (GPIO_INPUT_GET(CLING_KEY_SMARTCONFIG_IO_NUM) == CLING_KEY_SMARTCONFIG_ACTIVE_LEVEL){
 		CLING_DEBUG("long press entered \n");
 		wifi_set_opmode(STATION_MODE);
 		/*indicate that device has entered smart config mode*/
@@ -310,9 +317,9 @@ smart_config_long_press_callback(CLASS(cling_ap_para) *arg){
 			assert(NULL != register_inf);
 			/*if user callback task existed*/
 			if (NULL != register_inf->smart_config_call_back){
-				register_inf->smart_config_call_back(sta_conf);
+				register_inf->smart_config_call_back((void*)&(cling_sation_para_record->t));
 			}
-			CLING_DEBUG("flash ssid = %s\n", sta_conf->ssid);
+			CLING_DEBUG("flash ssid = %s\n", cling_sation_para_record->t.ssid);
 		}
 
 	}
@@ -368,7 +375,7 @@ cling_ap_para_start_smartconfig(CLASS(cling_ap_para) *arg)
 {
 	assert(NULL != arg);
 	/*customer press the key at power up*/
-   if (GPIO_INPUT_GET(CLING_KEY_0_IO_NUM) == CLING_KEY_0_ACTIVE_LEVEL){
+   if (GPIO_INPUT_GET(CLING_KEY_SMARTCONFIG_IO_NUM) == CLING_KEY_SMARTCONFIG_ACTIVE_LEVEL){
 		CLING_DEBUG("key pressed\n");
 		/**/
 		os_timer_disarm(&smart_key_long_press);
@@ -388,9 +395,9 @@ cling_ap_para_start_smartconfig(CLASS(cling_ap_para) *arg)
 			assert(NULL != register_inf);
 			/*if user callback task existed*/
 			if (NULL != register_inf->smart_config_call_back){
-				register_inf->smart_config_call_back(sta_conf);
+				register_inf->smart_config_call_back((void*)&(cling_sation_para_record->t));
 			}
-			CLING_DEBUG("flash ssid = %s\n", sta_conf->ssid);
+			CLING_DEBUG("flash ssid = %s\n", cling_sation_para_record->t.ssid);
 		}
 	}
 	
@@ -431,7 +438,7 @@ delete_cling_ap_para(CLASS(cling_ap_para) *arg)
 	assert(NULL != arg);
 	DELETE(arg->op_para_p ,cling_para_interface);
 	os_free(arg->user_data);
-	os_free(sta_conf);
+	os_free(cling_sation_para_record);
 	os_free(arg);
 	/*reset this flag*/
 	get_data_by_smartconfig = FALSE;

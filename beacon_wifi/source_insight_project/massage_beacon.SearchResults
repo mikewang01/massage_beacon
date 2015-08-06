@@ -1,11 +1,3 @@
----- send_package_assemble Matches (10 in 0 files) ----
-Massage_mac.c (app\protocol):LOCAL bool send_package_assemble(struct massage_mac_layer_payload_send *payload_temp, enum package_type type);
-Massage_mac.c (app\protocol):		// send_package_assemble(NULL, PACKAGE_ACK);
-Massage_mac.c (app\protocol):       // send_package_assemble(NULL, PACKAGE_ACK);
-Massage_mac.c (app\protocol): * FunctionName : send_package_assemble()
-Massage_mac.c (app\protocol):send_package_assemble(struct massage_mac_layer_payload_send *payload_temp, enum package_type type)
-Massage_mac.c (app\protocol):        send_package_assemble(send_package_list_header, PACKAGE_LOW_FIVEBYTES);
-Massage_mac.c (app\protocol):            send_package_assemble(payload_temp, payload_temp->pakage_type);
-Massage_mac.c (app\protocol):                send_package_assemble(payload_temp, payload_temp->pakage_type);
-Massage_mac.c (app\protocol):                    send_package_assemble(payload_temp, payload_temp->pakage_type);
-Massage_mac.c (app\protocol):                send_package_assemble(payload_temp, payload_temp->pakage_type);
+---- EVENT_GET_AP_INF Matches (2 in 0 files) ----
+Cling_task_misc.c (app\user):    case EVENT_GET_AP_INF: {
+Cling_task_misc.c (app\user):    system_os_post(SELF_TASK_ID,  IPC_EVENT(EVENT_GET_AP_INF), 'a');

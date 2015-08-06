@@ -40,6 +40,9 @@
 /*********************************************************************
 * MACROS
 */
+#ifdef SELF_TASK_ID
+#undef SELF_TASK_ID
+#endif
 #define  SELF_TASK_ID  			USER_TASK_PRIO_1
 #define	 TASK_MISC_QUEUE_LEN 	20
 /*********************************************************************
@@ -59,7 +62,7 @@
 LOCAL CLASS(cling_protocol)  *cling_uart_obj = NULL;
 LOCAL struct station_config station_conf;
 LOCAL CLASS(cling_ap_para) *smart_config_obj = NULL;
-LOCAL os_event_t *messge_queue;
+LOCAL os_event_t *message_queue;
 LOCAL CLASS(cling_fota) *cling_fota_obj = NULL;
 LOCAL CLASS(ble_fota) *ble_fota_obj = NULL;
 
@@ -93,7 +96,8 @@ ipc_event_process(os_event_t *e)
     case EVENT_GET_AP_INF: {
         struct station_config *sta_conf = (struct station_config *)os_malloc(sizeof(struct station_config));
         *sta_conf = station_conf;
-        system_os_post(USER_TASK_PRIO_0,  IPC_EVENT(EVENT_INIT), (u32)(sta_conf));
+		/* add by mike, 2015-08-05, Ô­Òò:modified temparoly */
+		system_os_post(WEB_CLIIENT_TASK_ID,  IPC_EVENT(EVENT_INIT), (u32)(sta_conf));
     }
     break;
 
@@ -141,7 +145,7 @@ http_event_process(os_event_t *e)
         struct espconn *p = (struct espconn*)e->par;
         char *t = p->proto.tcp->remote_ip;
         cling_fota_obj->config_server(cling_fota_obj, p);
-		ble_fota_obj->config_server(ble_fota_obj, p);
+		//ble_fota_obj->config_server(ble_fota_obj, p);
         CLING_DEBUG("MISC TASK server ip %d:%d:%d:%d\n", t[0], t[1], t[2], t[3]);
         os_free(p);
     }
@@ -254,21 +258,24 @@ cling_task_misc_process_init(void)
 {
 
     char buffer[2048]= {0};
-    messge_queue = (os_event_t *)os_malloc(sizeof(os_event_t)*TASK_MISC_QUEUE_LEN);
-    system_os_task(cling_misc_task_data_process, SELF_TASK_ID, messge_queue, TASK_MISC_QUEUE_LEN);
+    message_queue = (os_event_t *)os_malloc(sizeof(os_event_t)*TASK_MISC_QUEUE_LEN);
+    system_os_task(cling_misc_task_data_process, SELF_TASK_ID, message_queue, TASK_MISC_QUEUE_LEN);
     CLING_DEBUG("SDK version:%s\n", system_get_sdk_version());
     CLING_DEBUG("start smart config\n");
+#if 1
     NEW(smart_config_obj, cling_ap_para);
     smart_config_obj->register_callback(smart_config_obj, smart_config_call_back);
     smart_config_obj->start_smartconfig(smart_config_obj);
+#endif
+
     NEW(cling_fota_obj, cling_fota);
     cling_fota_obj->register_upgrade_startup_callback(cling_fota_obj, upgrade_startup_callback);
     cling_fota_obj->register_upgrade_finish_callback(cling_fota_obj, upgrade_finish_callback);
-	NEW(ble_fota_obj, ble_fota);
-	//ble_fota_obj->register_upgrade_startup_callback(ble_fota_obj, upgrade_startup_callback);
-	ble_fota_obj->register_upgrade_finish_callback(ble_fota_obj, upgrade_finish_callback);
-} //1970-01-01 00:00:00.
 
+	//NEW(ble_fota_obj, ble_fota);
+	//ble_fota_obj->register_upgrade_startup_callback(ble_fota_obj, upgrade_startup_callback);
+	//ble_fota_obj->register_upgrade_finish_callback(ble_fota_obj, upgrade_finish_callback);
+} //1970-01-01 00:00:00.
 
 /******************************************************************************
  * FunctionName : upgrade_startup_callback
@@ -327,8 +334,11 @@ smart_config_call_back(void *arg)
     CLING_DEBUG("enter into smartconfig user call back\n");
     /*assign station config to local varied*/
     station_conf = *(struct station_config*)arg;
+	/*when wifi ssid configured successfully install wifi status led*/
+    CLING_WIFI_INDICATOR_LED_INSTALL();
     /*when smart config finished ,start thread*/
     system_os_post(SELF_TASK_ID,  IPC_EVENT(EVENT_GET_AP_INF), 'a');
+	
 
 }
 

@@ -26,21 +26,239 @@
 /*********************************************************************
 * MACROS
 */
-#define  CLING_CLING_UART_FIFO_POLL_PERIOAD 50
+#define  MASSAGE_FIFO_POLL_PERIOAD 50
 
+//===============================================				
+#define zFootAirLed         zDisplay[0].bit1.sb0 //   				脚气压显示
+#define zCalfAirLed         zDisplay[0].bit1.sb1 //   				腿气压显示
+#define zSeatAirLed         zDisplay[0].bit1.sb2  //  				座气压显示
+//#define zWaistAirLed      zDisplay[0].bit1.sb3				
+#define zArmAirLed          zDisplay[0].bit1.sb4 //   				手气压显示
+				
+#define zCalfKneadLed       zDisplay[0].bit1.sb6//				腿部揉动显示
+//===============================================				
+#define zLegUp              zDisplay[1].bit1.sb0  //  				腿推杆上升
+#define zLegDown            zDisplay[1].bit1.sb1 //   				腿推杆下降
+#define zLegUpLim           zDisplay[1].bit1.sb2 //   				腿推杆上限位
+#define zLegDownLim         zDisplay[1].bit1.sb3 //   				腿推杆下限位
+#define zFootUp             zDisplay[1].bit1.sb4 //   				脚底滚动向前
+#define zFootDown           zDisplay[1].bit1.sb5 //   				脚底滚动向后
+#define zTwoBeep            zDisplay[1].bit1.sb6//				响两声
+//===============================================				
+#define zBackUp             zDisplay[2].bit1.sb0  //  				背推杆升背
+#define zBackDown           zDisplay[2].bit1.sb1  //  				背推杆倒背
+#define zBackUpLim          zDisplay[2].bit1.sb2  //  				背推杆升背限位
+#define zBackDownLim        zDisplay[2].bit1.sb3   // 				背推杆倒背限位
+#define zFootUpLim          zDisplay[2].bit1.sb4   // 				脚底滚动前限位
+#define zFootDownLim        zDisplay[2].bit1.sb5   // 				脚底滚动后限位
+//=============================================== 				
+#define zSHUp               zDisplay[3].bit1.sb0   // 				腿部伸长
+#define zSHDown             zDisplay[3].bit1.sb1    //				腿部缩回
+#define zSHUpLim            zDisplay[3].bit1.sb2  //  				腿部伸长限位
+#define zSHDownLim          zDisplay[3].bit1.sb3   // 				腿部缩回限位
+#define zIntensity0         zDisplay[3].bit1.sb4   // 				b6b5b4=0b001强度1档，b6b5b4=0b010强度2档，b6b5b4=0b011强度3档，其他没有用到
+#define zIntensity1         zDisplay[3].bit1.sb5    				
+#define zIntensity2         zDisplay[3].bit1.sb6    				
+//=============================================== 				
+#define zReset              zDisplay[4].bit1.sb0    //				主板复位
+#define zShape              zDisplay[4].bit1.sb1    //				jShape=1,zShape =0:肩高自动检测开始，jShape=0,zShape =1:肩高自动检测结束，手动调整开始，jShape=0,zShape =0:肩高检测完成
+				
+				
+				
+#define zSeatVibLed         zDisplay[4].bit1.sb6	//			座部震动
+//===============================================				
+#define jWalkUpLim          jDisplay[0].bit1.sb0    //				行走上限位
+#define jWalkDownLim        jDisplay[0].bit1.sb1  	//			行走下限位
+#define j3DUpLim            jDisplay[0].bit1.sb2    //				3D上限位
+#define j3DDownLim          jDisplay[0].bit1.sb3    //				3D下限位
+#define jWidth0             jDisplay[0].bit1.sb4    //				b5b4=0b00关，b5b4=0b01宽，b5b4=0b10中，b5b4=0b11窄，
+#define jWidth1             jDisplay[0].bit1.sb5    				
+#define jKneadFX            jDisplay[0].bit1.sb6    //				正揉＝0，反揉＝1
+//=====================================.bit1====				
+#define jKnockSpeed0        jDisplay[1].bit1.sb0	//			b2b1b0=0b000强度关，b2b1b0=0b001强度1档，b2b1b0=0b010强度2档，b2b1b0=0b011强度3档，b2b1b0=0b100强度4档，b2b1b0=0b101强度5档，其他没有用到
+#define jKnockSpeed1        jDisplay[1].bit1.sb1	//			
+#define jKnockSpeed2        jDisplay[1].bit1.sb2	//			
+				
+#define jKnockMode0         jDisplay[1].bit1.sb4    //				b5b4=0b00敲击，b5b4=0b01拍打，b5b4=0b10指压，b5b4=0b11空
+#define jKnockMode1         jDisplay[1].bit1.sb5    				
+#define jPressShoulder      jDisplay[1].bit1.sb6    				
+//=====================================.bit1===- 				
+#define jDotPosition0       jDisplay[2].bit1.sb0    //				b3b2b1b0=0b0000背部最下点。。。b3b2b1b0=0b1001背部最上点
+#define jDotPosition1       jDisplay[2].bit1.sb1    				
+#define jDotPosition2       jDisplay[2].bit1.sb2    				
+#define jDotPosition3       jDisplay[2].bit1.sb3    				
+#define j3DPosition0        jDisplay[2].bit1.sb4    //				b6b5b4=0b000三D最后点。。。b6b5b4=0b100三D最前点
+#define j3DPosition1        jDisplay[2].bit1.sb5    				
+#define j3DPosition2        jDisplay[2].bit1.sb6    				
+//=====================================.bit1==== 				
+				
+				
+				
+				
+#define jKneadSpeed0        jDisplay[3].bit1.sb4    	//			b6b5b4=0b000强度关，b6b5b4=0b001强度1档，b6b5b4=0b010强度2档，b6b5b4=0b011强度3档，b6b5b4=0b100强度4档，b6b5b4=0b101强度5档，其他没有用到
+#define jKneadSpeed1        jDisplay[3].bit1.sb5    				
+#define jKneadSpeed2        jDisplay[3].bit1.sb6    				
+//=====================================.bit1=====				
+#define jReset              jDisplay[4].bit1.sb0    //				机芯复位
+#define jShape              jDisplay[4].bit1.sb1    //				jShape=1,zShape =0:肩高自动检测开始，jShape=0,zShape =1:肩高自动检测结束，手动调整开始，jShape=0,zShape =0:肩高检测完成
+#define jWalkErr            jDisplay[4].bit1.sb2    //				揉捏电机故障
+#define jKneadErr           jDisplay[4].bit1.sb3	//			行走电机故障
+				
+#define jWKerr              jDisplay[4].bit1.sb5    //				行走限位故障
+#define j3Derr              jDisplay[4].bit1.sb6    //				3D限位故障
+//========================================= 				
 
-#define MASSAGE_POWER_ON 
 /*=====================================================================massage related command==================*/
 
 
 /*********************************************************************
 * TYPEDEFS
 */
+union massage_display{
+	uint8 tmp;
+	struct{
+		uint8 sb7:1;
+		uint8 sb6:1;
+		uint8 sb5:1;
+		uint8 sb4:1;
+		uint8 sb3:1;
+		uint8 sb2:1;
+		uint8 sb1:1;
+		uint8 sb0:1;
+		
+	}bit1;
+};
 
 struct cling_protocol_data {
     uint8 task_id_reg;
     os_timer_t uart_timer;
 };
+
+enum massage_order{
+	MASSAGE_POWER_OFF =0X10,
+	MASSAGE_POWER_ON,
+	MASSAGE_SHUTDOWN_URGENTLY,
+	MASSAGE_TIMEUP,
+	MASSAGE_AUTOMATICX_OFF,
+	MASSAGE_AUTOPROGRAM_OFF,
+	MASSAGE_READ_ACC_TIME_OFF,
+	MASSAGE_READ_ACC_TIME_ON,
+	MASSAGE_TEST_ON,
+	MASSAGE_AGING_ON,
+	MASSAGE_PAUSE_OFF,
+	MASSAGE_PAUSE_ON,
+	MASSAGE_EXPERIENCE_OFF,
+	MASSAGE_EXPERIENCE_ON,
+	MASSAGE_EXPERIENCE_FATIGUE_RECOVERY_SLIM_ON,
+	MASSAGE_EXPERIENCE_NECK_SLIM_ON,
+	MASSAGE_EXPERIENCE_WAIST_SLIM_ON,
+	MASSAGE_EXPERIENCE_STRENCH_SLIM_ON,
+	MASSAGE_EXPERIENCE_FATIGUE_RECOVERY_NORMAL_ON,
+	MASSAGE_EXPERIENCE_NECK_NORMAL_ON,
+	MASSAGE_EXPERIENCE_WAIST_NORMAL_ON,
+	MASSAGE_EXPERIENCE_STRENCH_NORMAL_ON,
+	MASSAGE_EXPERIENCE_FATIGUE_RECOVERY_FAT_ON,
+	MASSAGE_EXPERIENCE_NECK_FAT_ON,
+	MASSAGE_EXPERIENCE_WAIST_FAT_ON,
+	MASSAGE_EXPERIENCE_STRENCH_FAT_ON,
+
+
+	
+	MASSAGE_KNEADING_RESERSE_ON = 0x31,
+	MASSAGE_KNEADING_OFF,
+	MASSAGE_KNEADING_FORWARD_ON,
+	MASSAGE_BEATING_OFF,
+	MASSAGE_BEATING_ON,
+	MASSAGE_TAPING_OFF,
+	MASSAGE_TAPING_ON,
+	MASSAGE_SHIATSU_OFF,
+	MASSAGE_SHIATSU_ON,
+	MASSAGE_KNEADING_PERSUSSION_OFF,
+	MASSAGE_KNEADING_PERSUSSION_ON,
+	MASSAGE_BACK_3D_POINT0,
+	MASSAGE_BACK_3D_POINT1,
+	MASSAGE_BACK_3D_POINT2,
+	MASSAGE_BACK_3D_POINT3,
+	MASSAGE_BACK_3D_POINT4,
+	MASSAGE_WHOLE_BODY,
+	MASSAGE_SHOULDER_PART,
+	MASSAGE_BACK_PART,
+	MASSAGE_WAIST_PART,
+	MASSAGE_SPECIFIC_PART,  
+	MASSAGE_WANDER_UP,
+	MASSAGE_WANDER_OFF,
+	MASSAGE_WANDER_DOWN ,
+	MASSAGE_3DPLUS_FORWARD,
+	MASSAGE_3D_STOP,
+	MASSAGE_3DMINUS_STOP,
+	MASSAGE_WIDE_SIZE,
+	MASSAGE_NORMAL_SIZE,
+	MASSAGE_NARROW_SIZE,
+	
+	MASSAGE_BACK_SPPED_LEVEL1 = 0x50,
+	MASSAGE_BACK_SPPED_LEVEL2,
+	MASSAGE_BACK_SPPED_LEVEL3,
+	MASSAGE_BACK_SPPED_LEVEL4,
+	MASSAGE_BACK_SPPED_LEVEL5,
+	
+	MASSAGE_BACK_HEIGHT_LEVEL0,
+	MASSAGE_BACK_HEIGHT_LEVEL1,
+	MASSAGE_BACK_HEIGHT_LEVEL2,
+	MASSAGE_BACK_HEIGHT_LEVEL3,
+	MASSAGE_BACK_HEIGHT_LEVEL4,
+	MASSAGE_BACK_HEIGHT_LEVEL5,
+	MASSAGE_BACK_HEIGHT_LEVEL6,
+	MASSAGE_BACK_HEIGHT_LEVEL7,
+	MASSAGE_BACK_HEIGHT_LEVEL8,
+	MASSAGE_BACK_HEIGHT_LEVEL9,
+
+	
+	MASSAGE_PRESSURE_HANDPART_OFF = 0x64,
+	MASSAGE_PRESSURE_HANDPART_ON,
+	MASSAGE_PRESSURE_WAISTPART_OFF,
+	MASSAGE_PRESSURE_WAISTPART_ON,
+	MASSAGE_PRESSURE_HIPPART_OFF,
+	MASSAGE_PRESSURE_HIPPART_ON,
+	MASSAGE_PRESSURE_LEGPART_OFF,
+	MASSAGE_PRESSURE_LEGPART_ON,
+	MASSAGE_PRESSURE_FOOTPART_OFF,
+	MASSAGE_PRESSURE_FOOTPART_ON,
+	MASSAGE_PRESSURE_LEGKNEEDING_OFF,
+	MASSAGE_PRESSURE_LEGKNEEDING_ON,
+	MASSAGE_PRESSURE_LEVEL1,
+	MASSAGE_PRESSURE_LEVEL2,
+	MASSAGE_PRESSURE_LEVEL3,
+	MASSAGE_PRESSURE_LEVEL4,
+	MASSAGE_PRESSURE_LEVEL5,
+	
+	MASSAGE_ELECTRONIC_POLE_LIFT = 0x7d,
+	MASSAGE_ELECTRONIC_POLE_STOP,
+	MASSAGE_ELECTRONIC_POLE_BUTTOM,
+	MASSAGE_ELECTRONIC_POLE_LEG_ASEND,
+	MASSAGE_ELECTRONIC_POLE_LEG_STOP,
+	MASSAGE_ELECTRONIC_POLE_LEG_DESEND,
+	MASSAGE_ELECTRONIC_POLE_BACK_ASEND,
+	MASSAGE_ELECTRONIC_POLE_BACK_STOP,
+	MASSAGE_ELECTRONIC_POLE_BACK_DESEND,
+	MASSAGE_ELECTRONIC_POLE_LEG_STRETCH,
+	MASSAGE_ELECTRONIC_POLE_LEG_ADJ_STOP,
+	MASSAGE_ELECTRONIC_POLE_LEG_SHORTER,
+	MASSAGE_ELECTRONIC_POLE_STRETCH_ON,
+	MASSAGE_ELECTRONIC_POLE_STRETCH_OFF,
+
+	
+	MASSAGE_ELECTRONIC_POLE_ZERO_POWER_OFF = 0x8c,
+	MASSAGE_ELECTRONIC_POLE_ZERO_POWER_ON,
+	
+	MASSAGE_VABRATING_MOTOR_OFF = 0x90,
+	MASSAGE_VABRATING_MOTOR_ON_LEVEL1,
+	MASSAGE_VABRATING_MOTOR_ON_LEVEL2,
+	MASSAGE_VABRATING_MOTOR_ON_LEVEL3,
+	MASSAGE_VABRATING_MOTOR_ON_LEVEL4,
+	MASSAGE_VABRATING_MOTOR_ON_LEVEL5
+};
+
+
 
 /*********************************************************************
 * GLOBAL VARIABLES
@@ -51,8 +269,8 @@ struct cling_protocol_data {
 * LOCAL VARIABLES
 */
 LOCAL CLASS(massage_protocol) *this = NULL;
-
-
+LOCAL union massage_display zDisplay[5]; /*low five bytes buffer*/
+LOCAL union massage_display jDisplay[5]; /*high five bytes buffer*/
 /*********************************************************************
 * EXTERNAL VARIABLES
 */
@@ -68,6 +286,47 @@ LOCAL bool cling_data_send(CLASS(massage_protocol) *arg, char *pinf, size_t lent
 LOCAL bool enable_recieving(CLASS(massage_protocol) *arg);
 LOCAL bool disable_recieving(CLASS(massage_protocol) *arg);
 LOCAL void cling_cmd_rev_callback(char cmd);
+
+
+
+
+
+/******************************************************************************
+ * FunctionName : power_on
+ * Description  : send power on command to massage chair
+ * Parameters   : none
+ * Returns      : none
+*******************************************************************************/
+#if 1
+
+bool ICACHE_FLASH_ATTR
+power_on(CLASS(massage_protocol) *arg)
+{
+	assert(arg != NULL);
+	uint8 command = MASSAGE_POWER_ON;
+	arg->send_data(arg, &command, 1);
+	return TRUE;
+}
+#endif
+/******************************************************************************
+ * FunctionName : power_off
+ * Description  : send power off command to massage chair
+ * Parameters   : arg: object pointer
+ * Returns      : true: sucessfully false: failed
+*******************************************************************************/
+#if 1
+
+bool ICACHE_FLASH_ATTR
+power_off(CLASS(massage_protocol) *arg)
+{
+	assert(arg != NULL);
+	uint8 command = MASSAGE_POWER_OFF;
+	arg->send_data(arg, &command, 1);
+	return TRUE;
+}
+#endif
+
+
 
 /******************************************************************************
  * FunctionName : init_cling_uart
@@ -96,16 +355,20 @@ init_massage_protocol(CLASS(massage_protocol) *arg)
 
         arg->send_data = cling_data_send;
 
+		/*massage instruction communication method*/
+		arg->power_on = power_on;
+		arg->power_off = power_off;
+		
         arg->enable_recieving = enable_recieving;
         arg->disable_recieving = disable_recieving;
-
+		
         //uart_init(BIT_RATE_115200, BIT_RATE_115200);
 
         set_massage_recieved_cmd_call_back(cling_cmd_rev_callback);
         /*restart flag updating progress*/
-        //  os_timer_disarm(&(private_data->uart_timer));
-        // os_timer_setfn(&(private_data->uart_timer), (os_timer_func_t *)cling_data_recieved_poll, arg);
-        //  os_timer_arm(&(private_data->uart_timer), CLING_CLING_UART_FIFO_POLL_PERIOAD, 1);
+        os_timer_disarm(&(private_data->uart_timer));
+        os_timer_setfn(&(private_data->uart_timer), (os_timer_func_t *)cling_data_recieved_poll, arg);
+        os_timer_arm(&(private_data->uart_timer), MASSAGE_FIFO_POLL_PERIOAD, 1);
         /*initiate mac layer and physical layer related */
        // init_protocol_mac_layer();
         this = arg;
@@ -254,13 +517,14 @@ LOCAL bool ICACHE_FLASH_ATTR
 cling_data_recieved_poll(CLASS(massage_protocol) *arg)
 {
 
-    struct mac_layer_payload_rev *i = NULL;
+    struct massage_mac_layer_payload_rev *i = NULL;
     /*malloc corresponed dparameter buffer*/
     struct cling_protocol_data *private_data = (struct cling_protocol_data*)(arg->user_data);
     assert(private_data);
 
     /*if obtain a message from fifo succesfully,return true*/
-    if (obtain_payload_from_revlist(&i) == TRUE) {
+    if (massage_obtain_payload_from_revlist(&i) == TRUE) {
+		CLING_DEBUG("DATA AOTAINED FROM FIFO \r\n");
     }
     /*release data object transmitted from mac layer*/
     os_free(i);
@@ -286,7 +550,7 @@ cling_data_send(CLASS(massage_protocol) *arg, char *pinf, size_t lenth)
     struct cling_protocol_data *private_data = (struct cling_protocol_data*)(arg->user_data);
     assert(private_data);
 
-    massage_mac_send_payload((char*)pinf, lenth, PACKAGE_HIGH_FIVEBYTES);
+    massage_mac_send_payload((char*)pinf, lenth, PACKAGE_CMD);
 
 }
 #endif

@@ -52,6 +52,7 @@
 /*THE UPPER LIMIT OF TIMES THE DATA BEEN SENDED*/
 
 #define  RESEND_TIMES_UPPER_THREADHOLD  5
+#define  IS_RECIEVED_DATA_VALID(__x)  ((__x[1]^__x[2]^__x[3]^__x[4]^__x[5]) == __x[6])
 /*********************************************************************
 * TYPEDEFS
 */
@@ -86,7 +87,7 @@ enum package_state {
 /*********************************************************************
 * LOCAL VARIABLES
 */
-LOCAL CLASS(spi_comm) *phy_obj = NULL;
+LOCAL CLASS(uart) *phy_obj = NULL;
 /*recieve fifo related pointer*/
 LOCAL enum package_state current_state = PACKAGE_NULL;
 LOCAL struct massage_mac_layer_payload_rev *rev_payload_list_header = NULL;
@@ -121,7 +122,7 @@ int massage_receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para)
 #if 0
     MAC_SEND_BUFFER(&rev_char, 1);
 #endif
-    CLING_DEBUG("rev_char = 0x%02x state = %d \r\n",rev_char,current_state);
+   // CLING_DEBUG("rev_char = 0x%02x state = %d \r\n",rev_char,current_state);
 
     //*(para.pWritePos) = rev_char;
     /*this is a state machien from now on*/
@@ -181,7 +182,7 @@ int massage_receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para)
             if(*(para->pWritePos-1) == (uint8)(~(*(para->pWritePos - 2)))) {
                 /*this is a cmd ack package*/
 
-                CLING_DEBUG("cmd ack recieved\r\n");
+              //  CLING_DEBUG("cmd ack recieved\r\n");
 				received_data_process(para, PACKAGE_CMD_ACK);
                 para->pWritePos = para->pRcvMsgBuff;
                 current_state = PACKAGE_END;
@@ -189,7 +190,8 @@ int massage_receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para)
         } else if(para->pWritePos - para->pRcvMsgBuff >= 7) {
             /*when in 0xf0 mode, we need to check this pakage is a cmd ack one or a data send back one*/
 
-            CLING_DEBUG("low five status bytes recieved\r\n");
+           // CLING_DEBUG("low five status bytes recieved\r\n");
+			received_data_process(para, PACKAGE_LOW_FIVEBYTES);
             para->pWritePos = para->pRcvMsgBuff;
             current_state = PACKAGE_END;
         }
@@ -222,7 +224,8 @@ int massage_receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para)
 
         if(para->pWritePos - para->pRcvMsgBuff >= 7) {
             /*when in 0xf0 mode, we need to check this pakage is a cmd ack one or a data send back one*/
-            CLING_DEBUG("high five status bytes recieved\r\n");
+           // =CLING_DEBUG("high five status bytes recieved\r\n");
+			received_data_process(para, PACKAGE_HIGH_FIVEBYTES);
             para->pWritePos = para->pRcvMsgBuff;
             current_state = PACKAGE_END;
         }
@@ -292,11 +295,18 @@ received_data_process(RcvMsgBuff *para, enum package_type type)
 
     } else if (type == PACKAGE_HIGH_FIVEBYTES) {
         /*add messge to reveived messge list waiting for processing*/
-        add_payload2revlist(para->pRcvMsgBuff + 1, (para->pWritePos - para->pRcvMsgBuff - 1));
+	//	CLING_DEBUG("five status bytes recieved\r\n");
+        if(IS_RECIEVED_DATA_VALID(para->pRcvMsgBuff)){
+			CLING_DEBUG("valid\r\n");
+        	add_payload2revlist(para->pRcvMsgBuff + 1, (para->pWritePos - para->pRcvMsgBuff - 1));
+		}
 		// send_package_assemble(NULL, PACKAGE_ACK);
     } else if (type == PACKAGE_LOW_FIVEBYTES) {
-
-        add_payload2revlist(para->pRcvMsgBuff + 1, (para->pWritePos - para->pRcvMsgBuff - 1));
+		//CLING_DEBUG("five status bytes recieved\r\n");
+		if(IS_RECIEVED_DATA_VALID(para->pRcvMsgBuff)){
+		//	CLING_DEBUG("valid\r\n");
+        	add_payload2revlist(para->pRcvMsgBuff + 1, (para->pWritePos - para->pRcvMsgBuff - 1));
+		}
         /*for the real time purpose, call back function is prefered*/
         /*after receieving ,ssend back ack package*/
        // send_package_assemble(NULL, PACKAGE_ACK);
@@ -320,8 +330,6 @@ add_payload2revlist(uint8 *pbuffer, size_t size)
     if (IS_SEMAPHORE_LOCKED(rev_fifo_semphore)) {
         return FALSE;
     }
-
-
     /*enter critical section so that this is a atom acess*/
     LOCK_SEMAPHORE(rev_fifo_semphore);
 
@@ -402,6 +410,7 @@ send_package_assemble(struct massage_mac_layer_payload_send *payload_temp, enum 
 		default:break;
 
 	}
+	payload_temp->resend_times++;
 	buffer[n++] = payload_temp->ppayload[0];/*command bytes*/
 	buffer[n++] = (uint8)(~payload_temp->ppayload[0]);
 	//uart0_tx_buffer(payload_temp->ppayload, payload_temp->lenth);
@@ -465,7 +474,7 @@ massage_mac_send_payload(char *ppayload, size_t lenth, uint8 type)
         /*if there is no more data listed in chain send this immmidiately*/
         payload_temp->state = PACKAGE_WAITING_FOR_ACK;/*this must be set v=before being sended*/
         send_package_assemble(send_package_list_header, payload_temp->pakage_type);
-
+		//payload_temp->resend_times++;
         /*restart flag updating progress*/
         os_timer_disarm(&(uart_send_timer));
         os_timer_setfn(&(uart_send_timer), (os_timer_func_t *)mac_sendlist_mantain_demon, 0);
@@ -517,7 +526,7 @@ mac_sendlist_mantain_demon()
         if (payload_temp->state == PACKAGE_WAITING_FOR_SENDDING) {
 
             send_package_assemble(payload_temp, payload_temp->pakage_type);
-            payload_temp->resend_times = 0;
+            //payload_temp->resend_times++;
             /*send data over here*/
             payload_temp->state = PACKAGE_WAITING_FOR_ACK;
 
@@ -526,7 +535,7 @@ mac_sendlist_mantain_demon()
             if (payload_temp->resend_times < RESEND_TIMES_UPPER_THREADHOLD) {
                 send_package_assemble(payload_temp, payload_temp->pakage_type);
                 // MAC_SEND_BUFFER(payload_temp->, position);
-                payload_temp->resend_times ++;
+               // payload_temp->resend_times ++;
             } else {
 
                 CLING_DEBUG("send time up\n");
@@ -634,7 +643,7 @@ LOCAL bool ICACHE_FLASH_ATTR
 init_massage_mac_layer()
 {
     /*initiate phisical tranmit method*/
-    NEW(phy_obj,  spi_comm);
+    NEW(phy_obj,  uart);
 #if 0
     phy_obj->recv_callback_register(phy_obj, receive_one_char_callback);
 #endif

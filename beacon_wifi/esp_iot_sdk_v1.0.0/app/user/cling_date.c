@@ -1,3 +1,4 @@
+
 /*
  * (C) Copyright 2001
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
@@ -24,7 +25,6 @@
 /*
  * Date & Time support for Philips PCF8563 RTC
  */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
