@@ -87,8 +87,5 @@ DEF_CLASS(cling_protocol)
 	void *user_data;/*point to user private data*/
 END_DEF_CLASS(cling_protocol)
 
-
-
-
 #endif
 

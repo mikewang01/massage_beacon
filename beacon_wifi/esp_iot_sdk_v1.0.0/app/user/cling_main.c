@@ -70,7 +70,8 @@ void user_init(void)
     wifi_set_opmode(STATION_MODE);
 
 
-    uart_init(BIT_RATE_115200,BIT_RATE_115200);
+    //uart_init(BIT_RATE_19200,BIT_RATE_115200);
+	 uart_init(BIT_RATE_115200,BIT_RATE_115200);
     ETS_UART_INTR_ENABLE();
 
     //CLASS(cling_protocol) *cling_uart_obj;

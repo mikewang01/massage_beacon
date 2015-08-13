@@ -15,7 +15,10 @@ DEF_CLASS(massage_protocol)
 	bool (*de_init) 	(CLASS(massage_protocol) *arg);				/*delete uart object*/
 	bool (*send_data) 		(CLASS(massage_protocol) *arg, char *pinf, size_t lenth);/*data send   function*/
 	bool (*send_cmd) 		(CLASS(massage_protocol) *arg, char *pinf, size_t lenth);/*data send   function*/
+	bool (*send_heart_rate_level)	(CLASS(massage_protocol) *arg, uint8 heartrate_level);
 	bool (*power_on)	(CLASS(massage_protocol) *arg);
+	bool (*fatigue_mode_on)	(CLASS(massage_protocol) *arg);
+	bool (*fatigue_mode_off)	(CLASS(massage_protocol) *arg);
 	bool (*power_off)	(CLASS(massage_protocol) *arg);
 	bool (*enable_recieving) (CLASS(massage_protocol) *arg);
 	bool (*disable_recieving) (CLASS(massage_protocol) *arg);

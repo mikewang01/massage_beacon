@@ -98,7 +98,7 @@ spi_hardware_init()
 #if 1
     //init SPI bus
     spi_init_gpio(SPI_DEV, SPI_CLK_USE_DIV);
-    spi_clock(SPI_DEV, 4, 4); //5MHz
+    spi_clock(SPI_DEV, 4, 8); //5MHz
     spi_tx_byte_order(SPI_DEV, SPI_BYTE_ORDER_HIGH_TO_LOW);
     spi_rx_byte_order(SPI_DEV, SPI_BYTE_ORDER_HIGH_TO_LOW);
     SET_PERI_REG_MASK(SPI_USER(SPI_DEV), SPI_CS_SETUP|SPI_CS_HOLD);
@@ -233,14 +233,13 @@ get_valid_snyc_signal_short(void)
     //GPIO_OUTPUT_SET(GPIO_ID_PIN(CLING_FLASH_CS_IO_NUM), 0);
     //  rev = spi_rx8(SPI_DEV);
     //  CLING_DEBUG("spi read = 0x%02x\r\n",rev);
-#if 0
+#if 1
     do {
         rev = spi_rx8(SPI_DEV);
         n++;
         CLING_DEBUG("spi read = 0x%02x\r\n",rev);
-
         /*when received a sound pakage or exeed the up limitation number of received bytes*/
-        if(n > 20 || (callback_data->callback_function == NULL)?1:callback_data->callback_function(rev, &spi_rev_buffer)) {
+        if(n > 24 || (callback_data->callback_function == NULL)?1:callback_data->callback_function(rev, &spi_rev_buffer)) {
             break;
         }
         /*if a complete frame package has not been recieved, keeps reciveving*/

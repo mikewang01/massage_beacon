@@ -255,8 +255,337 @@ enum massage_order{
 	MASSAGE_VABRATING_MOTOR_ON_LEVEL2,
 	MASSAGE_VABRATING_MOTOR_ON_LEVEL3,
 	MASSAGE_VABRATING_MOTOR_ON_LEVEL4,
-	MASSAGE_VABRATING_MOTOR_ON_LEVEL5
+	MASSAGE_VABRATING_MOTOR_ON_LEVEL5,
+
+	MASSAGE_READ_LOWER_FIVE_STATUS_BYTES = 0XA5,
+	MASSAGE_READ_HIGHER_FIVE_STATUS_BYTES = 0XA5,
+	
+	MASSAGE_AUDIO_INTERACTION_OFF = 0xB0,
+	MASSAGE_AUDIO_INTERACTION_ON,
 };
+
+//==============================================================
+enum{
+	cancel_massage_am = 0,
+	whole_body_massage_am,
+	neck_part_massage_am,
+	wrist_part_massage_am,
+	strentch_massage_am,
+	recover_massage_am,	
+};
+
+
+enum{
+	cancel_kneading = 0,
+	clock_wise_kneading,
+	counter_clock_wise_kneading,
+};
+
+enum {
+	cancel_knocking = 0,
+	knocking_mode_knocking,
+	slapping_mode_knocking,
+};
+
+
+enum{
+	cancel_shiatsu = 0,
+	start_shiatsu
+};
+
+enum{
+	cancel_shoulder_adj = 0,
+	start_shoulder_up,
+	start_shoulder_down
+	
+};
+
+enum{
+	cancel_3d_adj = 0,
+	start_3d_up,
+	start_3d_down
+};
+
+enum{
+	cancel_seat_vibrate = 0,
+	seat_vibrate_level1,
+	seat_vibrate_level2,
+};
+
+enum{
+	cancel_mr = 0,
+	mr_whole_body,
+	mr_part_mode,
+	mr_specific_point_mode
+};
+
+enum{
+	cancel_massage_arm = 0,
+	start_massage_arm
+};
+
+enum{
+	cancel_massage_seat_qn = 0,
+	start_massage_sear_qn
+};
+
+
+enum{
+	cancel_massage_leg_qn = 0,
+	start_massage_leg_qn
+};
+
+enum{
+	cancel_massage_foot_qn = 0,
+	start_massage_foot_qn
+};
+
+
+enum{
+	cancel_massage_lrn = 0,
+	start_massage_lrn_clockwise,
+	start_massage_lrn_counterclockwise,
+};
+
+
+#pragma pack(push) 
+#pragma pack(1)
+
+/*send data package*/
+struct a8a_order_package_send{
+/*
+	union{
+		uint8 lead_uint8;
+	}byte0;
+*/
+	union{
+		
+		struct{
+			/*low bits*/			
+			uint8 am:3;
+			uint8 mmzy:1;
+			uint8 mmqd:2;
+			uint8 mmrn:2;
+			/*high bits*/
+			
+		}order;
+		uint8 byte;
+	} byte1;
+	
+	union{
+		struct{
+			uint8 lss:2;	
+			uint8 lud:2;
+			uint8 bud:2;
+			uint8 lbud:2;
+		}order;
+		uint8 byte;
+	}byte2;
+
+	union {
+		struct{			
+			uint8 slf:2;	
+			uint8 mr:2;
+			uint8 hud:2;
+			uint8 three_d:2;			
+		}order;
+		uint8 byte;
+	}byte3;
+
+	union {
+		struct{
+			uint8 e_heat:1;
+			uint8 nothing:1;
+			uint8 f_qn:1;			
+			uint8 l_qn:1;
+			uint8 lrn:2;
+			uint8 s_qn:1;
+			uint8 arm:1;
+		}order;
+		uint8 byte;
+	}byte4;	
+	
+	union {
+		struct{
+			uint8 sq:3;
+			uint8 sr:3;
+			uint8 s_fr:2;
+	 }order;
+		uint8 byte;
+	}byte5;	
+
+	union {
+		struct{
+			uint8 wh:2;
+			uint8 sh:2;
+			uint8 pause:1;
+			uint8 pwr:1;
+			uint8 res:1;
+			uint8 zero:1;
+	 
+	 	}order;
+		uint8 byte;
+	}byte6;
+
+	union{
+		struct{
+			uint8 res7:1;
+			uint8 res6:1;
+			uint8 res5:1;
+			uint8 res4:1;
+			uint8 res3:1;
+			uint8 res2:1;
+			uint8 res1:2;
+		}order;
+		uint8 byte;
+	}byte7;
+
+	
+/*	
+	union{
+		uint8 checksum;
+	}byte8;
+*/
+};
+#pragma pack(pop) 
+
+struct a8a_order_package_rec{
+	union{
+		char lead_char;
+	}byte0;
+
+	
+	union{
+		
+		struct{
+			char mmrn:2;
+			char mmqd:2;
+			char mmzy:1;
+			char am:3;
+			
+		}order;
+		char byte;
+	} byte1;
+	
+	union{
+		struct{
+			char lbud:2;
+			char bud:2;
+			char lud:2;
+			char lss:2;	
+		}order;
+		char byte;
+	}byte2;
+
+	union {
+		struct{
+			char three_d:2;
+			char hud:2;
+			char mr:2;
+			char slf:2;	
+		}order;
+		char byte;
+	}byte3;
+
+	union {
+		struct{
+			char arm:2;
+			char s_qn:2;
+			char lrn:2;
+			char l_qn:1;
+			char f_qn:1;			
+			char nothing:1;
+			char e_heat:1;
+		}order;
+		char byte;
+	}byte4;	
+	
+	union {
+		struct{
+			char s_fr:2;
+			char sr:3;
+			char sq:3;
+		}order;
+		char byte;
+	}byte5;	
+
+	union {
+		struct{
+			char zero:1;
+			char res:1;
+			char pwr:1;
+			char pause:1;
+			char sh:2;
+			char wh:2;
+		}order;
+		char byte;
+	}byte6;
+
+	union{
+		struct{
+			char res1:1;
+			char q6:1;
+			char q5:1;
+			char q4:1;
+			char q3:1;
+			char q2:1;
+			char q1:1;
+			char q0:1;
+		}order;
+		char byte;
+	}byte7;
+
+	union{
+		struct{
+			char e_st:1;
+			char q13:1;
+			char q12:1;
+			char q11:1;
+			char q10:1;
+			char q9:1;
+			char q8:1;
+			char q7:1;
+		}order;
+		char byte;
+	}byte8;
+	
+	union{
+		struct{
+			char amds:1;
+			char q13:1;
+			char q12:1;
+			char q11:1;
+			char q10:1;
+			char q9:1;
+			char q8:1;
+			char q7:1;
+		}order;
+		char byte;
+	}byte9;
+	
+	union{
+		struct{
+			char e7:1;
+			char e6:1;
+			char e5:1;
+			char e4:1;
+			char e3:1;
+			char e2:1;
+			char e1:1;
+			char e0:1;
+		}order;
+		char byte;
+	}byte10;	
+		
+	union{
+		char checksum;
+	}byte11;
+};
+
+
+
+
+//==========================================================
 
 
 
@@ -291,6 +620,62 @@ LOCAL void cling_cmd_rev_callback(char cmd);
 
 
 
+
+/******************************************************************************
+ * FunctionName : fatigue_mode_on
+ * Description  : send power on command to massage chair
+ * Parameters   : none
+ * Returns      : none
+*******************************************************************************/
+#if 1
+bool ICACHE_FLASH_ATTR
+fatigue_mode_on(CLASS(massage_protocol) *arg)
+{
+	assert(arg != NULL);
+	struct a8a_order_package_send i;
+	os_memset(&i,0, sizeof(struct a8a_order_package_send));
+	i.byte1.order.mmrn = 2;
+	i.byte6.order.pwr = 1;
+	uint8 command = MASSAGE_EXPERIENCE_FATIGUE_RECOVERY_NORMAL_ON;
+#ifdef SONGYAN_A8L
+	arg->send_data(arg, &command, 1);
+#else
+#ifdef SONGYAN_A8A
+	arg->send_data(arg, (char*)&i, sizeof(struct a8a_order_package_send));
+#endif
+#endif
+	return TRUE;
+}
+#endif
+/******************************************************************************
+ * FunctionName : fatigue_mode_on
+ * Description  : send power on command to massage chair
+ * Parameters   : none
+ * Returns      : none
+*******************************************************************************/
+#if 1
+bool ICACHE_FLASH_ATTR
+fatigue_mode_off(CLASS(massage_protocol) *arg)
+{
+	assert(arg != NULL);
+	struct a8a_order_package_send i;
+	os_memset(&i,0, sizeof(struct a8a_order_package_send));
+	i.byte1.order.mmrn = 2;
+	i.byte6.order.pwr = 1;
+	uint8 command = MASSAGE_EXPERIENCE_OFF;
+#ifdef SONGYAN_A8L
+	arg->send_data(arg, &command, 1);
+#else
+#ifdef SONGYAN_A8A
+	arg->send_data(arg, (char*)&i, sizeof(struct a8a_order_package_send));
+#endif
+#endif
+	return TRUE;
+}
+#endif
+
+
+
 /******************************************************************************
  * FunctionName : power_on
  * Description  : send power on command to massage chair
@@ -298,13 +683,22 @@ LOCAL void cling_cmd_rev_callback(char cmd);
  * Returns      : none
 *******************************************************************************/
 #if 1
-
 bool ICACHE_FLASH_ATTR
 power_on(CLASS(massage_protocol) *arg)
 {
 	assert(arg != NULL);
+	struct a8a_order_package_send i;
+	os_memset(&i,0, sizeof(struct a8a_order_package_send));
+	i.byte1.order.mmrn = 2;
+	i.byte6.order.pwr = 1;
 	uint8 command = MASSAGE_POWER_ON;
+#ifdef SONGYAN_A8L
 	arg->send_data(arg, &command, 1);
+#else
+#ifdef SONGYAN_A8A
+	arg->send_data(arg, (char*)&i, sizeof(struct a8a_order_package_send));
+#endif
+#endif
 	return TRUE;
 }
 #endif
@@ -320,12 +714,49 @@ bool ICACHE_FLASH_ATTR
 power_off(CLASS(massage_protocol) *arg)
 {
 	assert(arg != NULL);
+	struct a8a_order_package_send i;
+	os_memset(&i,0, sizeof(struct a8a_order_package_send));
+	i.byte1.order.mmrn = 1;
+	i.byte6.order.pwr = 0;
 	uint8 command = MASSAGE_POWER_OFF;
-	arg->send_data(arg, &command, 1);
+#ifdef SONGYAN_A8L
+		arg->send_data(arg, &command, 1);
+#else
+#ifdef SONGYAN_A8A
+		arg->send_data(arg, (char*)&i, sizeof(struct a8a_order_package_send));
+#endif
+#endif
 	return TRUE;
 }
 #endif
 
+/******************************************************************************
+ * FunctionName : send_heart_rate
+ * Description  : send heart rate levle to chait
+ * Parameters   : arg: object pointer
+ * Returns      : true: sucessfully false: failed
+*******************************************************************************/
+#if 1
+
+bool ICACHE_FLASH_ATTR
+send_heart_rate_level(CLASS(massage_protocol) *arg, uint8 heartrate_level)
+{
+	assert(arg != NULL);
+	struct a8a_order_package_send i;
+	os_memset(&i,0, sizeof(struct a8a_order_package_send));
+	i.byte1.order.mmrn = 1;
+	i.byte6.order.pwr = 0;
+	uint8 command = heartrate_level;
+#ifdef SONGYAN_A8L
+		arg->send_data(arg, &command, 1);
+#else
+#ifdef SONGYAN_A8A
+		arg->send_data(arg, (char*)&i, sizeof(struct a8a_order_package_send));
+#endif
+#endif
+	return TRUE;
+}
+#endif
 
 
 /******************************************************************************
@@ -355,6 +786,9 @@ init_massage_protocol(CLASS(massage_protocol) *arg)
 
         arg->send_data = cling_data_send;
 
+		arg->send_heart_rate_level = send_heart_rate_level;
+		arg->fatigue_mode_on = fatigue_mode_on;
+		arg->fatigue_mode_off = fatigue_mode_off;
 		/*massage instruction communication method*/
 		arg->power_on = power_on;
 		arg->power_off = power_off;

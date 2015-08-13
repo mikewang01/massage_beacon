@@ -97,9 +97,9 @@ init_cling_protocol(CLASS(cling_protocol) *arg)
 
 	    set_recieved_cmd_call_back(cling_cmd_rev_callback);
 	    /*restart flag updating progress*/
-	  //  os_timer_disarm(&(private_data->uart_timer));
-	   // os_timer_setfn(&(private_data->uart_timer), (os_timer_func_t *)cling_data_recieved_poll, arg);
-	  //  os_timer_arm(&(private_data->uart_timer), CLING_CLING_UART_FIFO_POLL_PERIOAD, 1);
+	    os_timer_disarm(&(private_data->uart_timer));
+	    os_timer_setfn(&(private_data->uart_timer), (os_timer_func_t *)cling_data_recieved_poll, arg);
+	    os_timer_arm(&(private_data->uart_timer), CLING_CLING_UART_FIFO_POLL_PERIOAD, 1);
 		/*initiate mac layer and physical layer related */
 		init_protocol_mac_layer();
 		this = arg;
@@ -127,6 +127,7 @@ enable_recieving(CLASS(cling_protocol) *arg)
     assert(NULL != arg);
     /*enable receive interrupt enable*/
     //ETS_UART_INTR_ENABLE();
+	ETS_GPIO_INTR_ENABLE();
 
     return TRUE;
 
@@ -148,7 +149,7 @@ disable_recieving(CLASS(cling_protocol) *arg)
     assert(NULL != arg);
     /*enable receive interrupt enable*/
     //ETS_UART_INTR_DISABLE();
-
+	ETS_GPIO_INTR_DISABLE();
     return TRUE;
 
 }
@@ -257,7 +258,10 @@ cling_data_recieved_poll(CLASS(cling_protocol) *arg)
     if (obtain_payload_from_revlist(&i) == TRUE) {
 #ifdef UART_OLD_PROTOCAL
 
-        CLING_DEBUG("uart cmd layer recieved%d\n", sizeof(struct cling_health_rev));
+        CLING_DEBUG("uart cmd layer recieved lenth= %d\n", i->lenth);
+		//char a[] = {0x91, 0x82,0xcd, 0xde};
+		//arg->send_data(arg, a, 4);
+
         if (i->lenth == sizeof(struct cling_inf_rev)) {
             CLING_DEBUG("location recieved%d\n", i->lenth);
             struct cling_inf_rev *inf_i =  (struct cling_inf_rev *)(i->ppayload);
@@ -265,6 +269,7 @@ cling_data_recieved_poll(CLASS(cling_protocol) *arg)
             if (IS_TASK_VALID(private_data->task_id_reg)) {
                 system_os_post(private_data->task_id_reg, UART_EVENT(EVENT_UART_RX_LOCATION), (os_param_t)inf_i);
                 /*buffer gonna be freed in user task*/
+				return TRUE;
 
             } else {
                 /*release cmd data ,because there is no task  gonna accept and release this message*/
@@ -278,6 +283,7 @@ cling_data_recieved_poll(CLASS(cling_protocol) *arg)
             if (IS_TASK_VALID(private_data->task_id_reg)) {
                 system_os_post(private_data->task_id_reg, UART_EVENT(EVENT_UART_RX_HEALTH), (os_param_t)inf_i);
                 /*buffer gonna be freed in user task*/
+				return TRUE;
 
             } else {
                 /*release cmd data ,because there is no task  gonna accept and release this message*/
@@ -295,7 +301,7 @@ cling_data_recieved_poll(CLASS(cling_protocol) *arg)
             //uart0_tx_buffer("hello", 5);
         }
 #endif
-
+	os_free(i);
     }
 }
 #endif

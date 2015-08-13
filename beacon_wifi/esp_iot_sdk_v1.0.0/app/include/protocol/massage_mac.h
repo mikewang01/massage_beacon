@@ -6,6 +6,11 @@
 #include "osapi.h"
 #include "C_types.h"
 #include "oop_hal.h"
+
+
+#define SONGYAN_A8A
+//#define SONGYAN_A8L
+
 /*package type emurate*/
 enum package_type {
     PACKAGE_ACK = 0,

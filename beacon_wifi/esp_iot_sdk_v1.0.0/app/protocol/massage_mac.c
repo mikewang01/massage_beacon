@@ -19,8 +19,16 @@
 #include "driver/uart.h"
 #include "driver/spi_comm.h"
 
-
+#ifdef  SONGYAN_A8L
 #define PACKAGE_HEADER_WRTITE_LOWFIVEBYTESREAD_ORDER    0XF0
+#else
+#ifdef SONGYAN_A8A
+/*old maasage model start code*/
+#define PACKAGE_HEADER_WRTITE_LOWFIVEBYTESREAD_ORDER    0X7F
+#endif
+#endif
+
+
 #define PACKAGE_HEADER_READORDER_HIGH_FIVE_BYTES    0XF1
 
 
@@ -118,10 +126,14 @@ LOCAL void received_data_process(RcvMsgBuff *para, enum package_type type);
  * Returns      : none
 *******************************************************************************/
 int massage_receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para)
+
+#ifdef SONGYAN_A8L
 {
 #if 0
     MAC_SEND_BUFFER(&rev_char, 1);
 #endif
+	#define MASSAGE_RETRUN_PACKAGE_LENTH 7
+
    // CLING_DEBUG("rev_char = 0x%02x state = %d \r\n",rev_char,current_state);
 
     //*(para.pWritePos) = rev_char;
@@ -135,8 +147,8 @@ int massage_receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para)
             /*reset message buffer write pointer*/
             /*onece a start header started*/
             para->pWritePos = para->pRcvMsgBuff;
+			*(para->pWritePos) = rev_char;
             para->pWritePos++;
-            *(para->pWritePos) = rev_char;
             para->BuffState = UNDER_WRITE;
         } else if(rev_char == PACKAGE_HEADER_READORDER_HIGH_FIVE_BYTES) {
             /*change current state machine*/
@@ -187,10 +199,118 @@ int massage_receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para)
                 para->pWritePos = para->pRcvMsgBuff;
                 current_state = PACKAGE_END;
             }
-        } else if(para->pWritePos - para->pRcvMsgBuff >= 7) {
+        } else if(para->pWritePos - para->pRcvMsgBuff >= MASSAGE_RETRUN_PACKAGE_LENTH) {
             /*when in 0xf0 mode, we need to check this pakage is a cmd ack one or a data send back one*/
 
            // CLING_DEBUG("low five status bytes recieved\r\n");
+			received_data_process(para, PACKAGE_LOW_FIVEBYTES);
+            para->pWritePos = para->pRcvMsgBuff;
+            current_state = PACKAGE_END;
+        }
+        break;
+    case PACKAGE_RECIEVEHIGHFIVEBYTES:
+        if (rev_char == PACKAGE_HEADER_WRTITE_LOWFIVEBYTESREAD_ORDER) {
+            /*change current state machine*/
+            current_state = PACKAGE_CMDACK_RECIEVELOWFIVEBYTES;
+            /*reset message buffer write pointer*/
+            /*onece a start header started*/
+            para->pWritePos = para->pRcvMsgBuff;
+            *(para->pWritePos) = rev_char;
+			para->pWritePos++;
+            para->BuffState = UNDER_WRITE;
+            break;
+        } else if(rev_char == PACKAGE_HEADER_READORDER_HIGH_FIVE_BYTES) {
+            /*change current state machine*/
+            current_state = PACKAGE_RECIEVEHIGHFIVEBYTES;
+            /*reset message buffer write pointer*/
+            /*onece a start header started*/
+            para->pWritePos = para->pRcvMsgBuff;
+            *(para->pWritePos) = rev_char;
+            para->pWritePos++;
+            para->BuffState = UNDER_WRITE;
+            break;
+        }
+
+        *(para->pWritePos) = rev_char;
+        para->pWritePos++;
+
+        if(para->pWritePos - para->pRcvMsgBuff >= MASSAGE_RETRUN_PACKAGE_LENTH) {
+            /*when in 0xf0 mode, we need to check this pakage is a cmd ack one or a data send back one*/
+           // =CLING_DEBUG("high five status bytes recieved\r\n");
+			received_data_process(para, PACKAGE_HIGH_FIVEBYTES);
+            para->pWritePos = para->pRcvMsgBuff;
+            current_state = PACKAGE_END;
+        }
+        break;
+    }
+    return  ((current_state == PACKAGE_END)?1:0);
+}
+#else
+#ifdef SONGYAN_A8A 
+{
+	#define MASSAGE_RETRUN_PACKAGE_LENTH 12
+#if 0
+    MAC_SEND_BUFFER(&rev_char, 1);
+#endif
+   // CLING_DEBUG("rev_char = 0x%02x state = %d \r\n",rev_char,current_state);
+
+    //*(para.pWritePos) = rev_char;
+    /*this is a state machien from now on*/
+    switch (current_state) {
+    case PACKAGE_END:
+    case PACKAGE_NULL: {
+        if (rev_char == PACKAGE_HEADER_WRTITE_LOWFIVEBYTESREAD_ORDER) {
+            /*change current state machine*/
+            current_state = PACKAGE_CMDACK_RECIEVELOWFIVEBYTES;
+            /*reset message buffer write pointer*/
+            /*onece a start header started*/
+            para->pWritePos = para->pRcvMsgBuff;
+            *(para->pWritePos) = rev_char;
+            para->pWritePos++;
+            para->BuffState = UNDER_WRITE;
+        } else if(rev_char == PACKAGE_HEADER_READORDER_HIGH_FIVE_BYTES) {
+            /*change current state machine*/
+            current_state = PACKAGE_RECIEVEHIGHFIVEBYTES;
+            /*reset message buffer write pointer*/
+            /*onece a start header started*/
+            para->pWritePos = para->pRcvMsgBuff;
+            *(para->pWritePos) = rev_char;
+            para->pWritePos++;
+            para->BuffState = UNDER_WRITE;
+
+        }
+    }
+    break;
+
+    case PACKAGE_CMDACK_RECIEVELOWFIVEBYTES:
+        if (rev_char == PACKAGE_HEADER_WRTITE_LOWFIVEBYTESREAD_ORDER) {
+            /*change current state machine*/
+            current_state = PACKAGE_CMDACK_RECIEVELOWFIVEBYTES;
+            /*reset message buffer write pointer*/
+            /*onece a start header started*/
+            para->pWritePos = para->pRcvMsgBuff;
+            *(para->pWritePos) = rev_char;
+            para->pWritePos++;
+            para->BuffState = UNDER_WRITE;
+            break;
+        } else if(rev_char == PACKAGE_HEADER_READORDER_HIGH_FIVE_BYTES) {
+            /*change current state machine*/
+            current_state = PACKAGE_RECIEVEHIGHFIVEBYTES;
+            /*reset message buffer write pointer*/
+            /*onece a start header started*/
+            para->pWritePos = para->pRcvMsgBuff;
+            *(para->pWritePos) = rev_char;
+            para->pWritePos++;
+            para->BuffState = UNDER_WRITE;
+            break;
+        }
+
+        *(para->pWritePos) = rev_char;
+        para->pWritePos++;
+ 		if(para->pWritePos - para->pRcvMsgBuff >= MASSAGE_RETRUN_PACKAGE_LENTH) {
+            /*when in 0xf0 mode, we need to check this pakage is a cmd ack one or a data send back one*/
+
+            CLING_DEBUG("low five status bytes recieved\r\n");
 			received_data_process(para, PACKAGE_LOW_FIVEBYTES);
             para->pWritePos = para->pRcvMsgBuff;
             current_state = PACKAGE_END;
@@ -222,7 +342,7 @@ int massage_receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para)
         *(para->pWritePos) = rev_char;
         para->pWritePos++;
 
-        if(para->pWritePos - para->pRcvMsgBuff >= 7) {
+        if(para->pWritePos - para->pRcvMsgBuff >= MASSAGE_RETRUN_PACKAGE_LENTH) {
             /*when in 0xf0 mode, we need to check this pakage is a cmd ack one or a data send back one*/
            // =CLING_DEBUG("high five status bytes recieved\r\n");
 			received_data_process(para, PACKAGE_HIGH_FIVEBYTES);
@@ -234,6 +354,8 @@ int massage_receive_one_char_callback(uint8 rev_char, RcvMsgBuff *para)
     return  ((current_state == PACKAGE_END)?1:0);
 }
 
+#endif
+#endif
 /******************************************************************************
  * FunctionName : set_massage_recieved_cmd_call_back
  * Description  : call back function when received one char
@@ -288,6 +410,7 @@ macsend_ack_recieved()
 
 LOCAL void ICACHE_FLASH_ATTR
 received_data_process(RcvMsgBuff *para, enum package_type type)
+#ifdef SONGYAN_A8L
 {
 
     /*this means this is a ack package*/
@@ -314,7 +437,50 @@ received_data_process(RcvMsgBuff *para, enum package_type type)
 
      macsend_ack_recieved();
 }
+#else
+#ifdef SONGYAN_A8A
+{
 
+    /*this means this is a ack package*/
+    if (type == PACKAGE_CMD_ACK) {
+
+    } else if (type == PACKAGE_HIGH_FIVEBYTES) {
+        /*add messge to reveived messge list waiting for processing*/
+	//	CLING_DEBUG("five status bytes recieved\r\n");
+		int i = 0;
+		uint8 chek_sum = 0;
+		for(i = 0; i < (MASSAGE_RETRUN_PACKAGE_LENTH -1); i++) {
+			chek_sum += (uint8)(para->pRcvMsgBuff[i]);
+			
+		}
+        if((uint8)(para->pRcvMsgBuff[i]) == chek_sum){
+			CLING_DEBUG("HIGH_FIVEBYTES valid\r\n");
+        	add_payload2revlist(para->pRcvMsgBuff + 1, (para->pWritePos - para->pRcvMsgBuff - 1));
+		}
+		// send_package_assemble(NULL, PACKAGE_ACK);
+    } else if (type == PACKAGE_LOW_FIVEBYTES) {
+		int i = 0;
+		uint16 chek_sum = 0;
+		for(i = 0; i < (MASSAGE_RETRUN_PACKAGE_LENTH -1); i++) {
+			//CLING_DEBUG("para->pRcvMsgBuff[i] = 0x%02x\r\n", para->pRcvMsgBuff[i]);
+			chek_sum += (uint8)(para->pRcvMsgBuff[i]);
+			
+		}
+		//CLING_DEBUG("LOW_FIVEBYTES check sum = 0x%02x\r\n", (uint8)chek_sum);
+        if((uint8)(para->pRcvMsgBuff[i]) == (uint8)chek_sum){
+			CLING_DEBUG("LOW_FIVEBYTES valid\r\n");
+        	add_payload2revlist(para->pRcvMsgBuff + 1, (para->pWritePos - para->pRcvMsgBuff - 1));
+		}
+        /*for the real time purpose, call back function is prefered*/
+        /*after receieving ,ssend back ack package*/
+       // send_package_assemble(NULL, PACKAGE_ACK);
+    }
+
+     macsend_ack_recieved();
+}	
+
+#endif
+#endif
 
 /******************************************************************************
  * FunctionName : add_payload2list
@@ -392,6 +558,8 @@ FAILED:
 *******************************************************************************/
 LOCAL bool ICACHE_FLASH_ATTR
 send_package_assemble(struct massage_mac_layer_payload_send *payload_temp, enum package_type type)
+
+#ifdef SONGYAN_A8L
 {
 	uint8 buffer[MASSAGE_MAX_BUFFER];
 	int n = 0;
@@ -417,6 +585,32 @@ send_package_assemble(struct massage_mac_layer_payload_send *payload_temp, enum 
 	MAC_SEND_BUFFER(buffer, (n));
     return TRUE;
 }
+#else
+#ifdef SONGYAN_A8A
+{
+	uint8 buffer[MASSAGE_MAX_BUFFER];
+	int n = 0;
+	buffer[n++] = PACKAGE_HEADER_WRTITE_LOWFIVEBYTESREAD_ORDER;
+	
+	payload_temp->resend_times++;
+
+	int i = 0;
+	uint8 check_sum = buffer[0];
+	
+	for (; i < payload_temp->lenth ; i++){
+		check_sum += (uint8)(payload_temp->ppayload[i]);
+		buffer[n] = (uint8)(payload_temp->ppayload[i]);
+		n++;
+	}
+	(buffer[n++]) = check_sum;
+	//uart0_tx_buffer(payload_temp->ppayload, payload_temp->lenth);
+	MAC_SEND_BUFFER(buffer, (n));
+    return TRUE;
+}
+
+
+#endif
+#endif
 
 /******************************************************************************
  * FunctionName : massage_mac_send_payload

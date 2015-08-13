@@ -110,13 +110,10 @@ ipc_event_process(os_event_t *e)
 
         break;
 	case EVENT_CLING_HEALTH_RECIEVED:{
-			static int i = 0;
-			if(i%2 == 0){
-	    		massage_obj->power_on(massage_obj);
-			}else{
-				massage_obj->power_off(massage_obj);
-			}
-			i++;
+			struct cling_health_rev *pbuffer = (struct cling_health_rev *)e->par;
+			CLING_DEBUG("heart rate = %d\r\n", pbuffer->heart_rate);
+    		massage_obj->power_on(massage_obj);
+			os_free(pbuffer);
 	}
 		break;
     default:

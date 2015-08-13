@@ -212,8 +212,7 @@ cling_reset_callback(uint8 state)
 *******************************************************************************/
 LOCAL void ICACHE_FLASH_ATTR
 ipc_event_process(os_event_t *e)
-{
-
+{  
     char send_buffer[jsonSize];
     switch (GET_EVENT_TYPE(e->sig)) {
 
@@ -223,6 +222,7 @@ ipc_event_process(os_event_t *e)
         os_free(p);
         /*once thread start ,delete smart config object first*/
         NEW(http_obj, http_service);
+		
         http_obj->msgrev_task_register(http_obj, MISC_TASK_ID, WEB_CLIIENT_TASK_ID, WEB_CLIIENT_TASK_ID);
         http_obj->set_reset_callback(http_obj, cling_reset_callback);
         http_obj->set_start_connect_to_server_callback(http_obj, cling_connect_start_callback);
@@ -233,10 +233,12 @@ ipc_event_process(os_event_t *e)
         timestamp_mgr_obj->msgrev_register(timestamp_mgr_obj, WEB_CLIIENT_TASK_ID);
         /*register task to cling uart to recieve message */
         cling_spi_protocol_obj->task_register(cling_spi_protocol_obj, WEB_CLIIENT_TASK_ID);
+
+		
         CLING_DEBUG("ssid= %s password = %s \n",station_conf.ssid ,station_conf.password);
         http_obj->config(http_obj, station_conf.ssid, station_conf.password);
         CLING_DEBUG("connect to ap\n");
-
+		
         cling_data_flow_led_init();
         TRIGGER_TIMESTAMP_SENDING(fifo_json_state);
         http_obj->connect_ap(http_obj);
@@ -529,10 +531,14 @@ uart_event_process(os_event_t *e)
         i.pbuffer = (char*)pbuffer;
         i.lenth = sizeof(pbuffer);
         i.time_stamp = k;
+		//struct cling_health_rev *pbuffer = (struct cling_health_rev *)i.pbuffer;
+		system_os_post(MASSAGE_TASK_ID, IPC_EVENT(EVENT_CLING_HEALTH_RECIEVED), e->par);
+#if 0
+
         /*push into fifo which will be sended once connected with server*/
         CLING_FIFO_IN(health_json_send_fifo, i, struct json_send_buffer);
 
-#if 1
+
 
         if (IS_CLING_FIFO_FULL(health_json_send_fifo) && time_flag == 1) {
             TRIGGER_HEALTH_SENDING(fifo_json_state);
@@ -698,8 +704,6 @@ LOCAL void ICACHE_FLASH_ATTR
 location_fifo_checkout_callback(void)
 {
     CLING_DEBUG("location_fifo_checkout_callback\n");
-	
-	system_os_post(MASSAGE_TASK_ID,  IPC_EVENT(EVENT_CLING_HEALTH_RECIEVED), 1);
 	//system_os_post( ,os_signal_t sig,os_param_t par)
     /*there are some message eixsting in http json send fifo*/
     if (!IS_CLING_FIFO_EMPTY(http_json_send_fifo)) {
