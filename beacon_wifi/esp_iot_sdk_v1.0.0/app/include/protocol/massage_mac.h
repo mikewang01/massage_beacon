@@ -8,8 +8,8 @@
 #include "oop_hal.h"
 
 
-#define SONGYAN_A8A
-//#define SONGYAN_A8L
+//#define SONGYAN_A8A
+#define SONGYAN_A8L
 
 /*package type emurate*/
 enum package_type {

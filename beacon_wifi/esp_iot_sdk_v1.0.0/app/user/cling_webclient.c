@@ -1,13 +1,21 @@
-/******************************************************************************
- * Copyright 2013-2014 Espressif Systems (Wuxi)
- *
- * FileName: user_webserver.c
- *
- * Description: The web server mode configration.
- *              Check your hardware connection with the host while use this mode.
- * Modification history:
- *     2014/3/12, v1.0 create this file.
-*******************************************************************************/
+/********************************************************************************
+
+ **** Copyright (C), 2015, xx xx xx xx info&tech Co., Ltd.                ****
+
+ ********************************************************************************
+ * File Name     : cling_webclient.c
+ * Author        : mikewang
+ * Date          : 2015-08-17
+ * Description   : .C file function description
+ * Version       : 1.0
+ * Function List :
+ * 
+ * Record        :
+ * 1.Date        : 2015-08-17
+ *   Author      : mikewang
+ *   Modification: Created file
+
+*************************************************************************************************************/
 #include "ets_sys.h"
 #include "os_type.h"
 #include "osapi.h"
@@ -271,13 +279,13 @@ ipc_event_process(os_event_t *e)
 *******************************************************************************/
 
 LOCAL void ICACHE_FLASH_ATTR
-http_event_process(os_event_t *e)
+http_event_process(os_event_t *e) 
 {
 
     char send_buffer[jsonSize];
     switch (GET_EVENT_TYPE(e->sig)) {
 
-    case EVENT_SERVER_CONNECTED:
+    case EVENT_SERVER_CONNECTED:  
         CLING_DEBUG("EVENT_SERV ER_CONNECTED fifo_json_state = %d\n",fifo_json_state.json_state);
 
         /*if there are any json string need to exchanging with server*/

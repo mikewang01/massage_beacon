@@ -20,6 +20,8 @@ DEF_CLASS(massage_protocol)
 	bool (*fatigue_mode_on)	(CLASS(massage_protocol) *arg);
 	bool (*fatigue_mode_off)	(CLASS(massage_protocol) *arg);
 	bool (*power_off)	(CLASS(massage_protocol) *arg);
+	bool (*enable_audio_interaction)	(CLASS(massage_protocol) *arg);
+	bool (*disable_audio_interaction)	(CLASS(massage_protocol) *arg);
 	bool (*enable_recieving) (CLASS(massage_protocol) *arg);
 	bool (*disable_recieving) (CLASS(massage_protocol) *arg);
 	bool (*task_register) 	(CLASS(massage_protocol) *arg, uint16 task_id);			/*register  object*/

@@ -632,15 +632,15 @@ bool ICACHE_FLASH_ATTR
 fatigue_mode_on(CLASS(massage_protocol) *arg)
 {
 	assert(arg != NULL);
-	struct a8a_order_package_send i;
-	os_memset(&i,0, sizeof(struct a8a_order_package_send));
-	i.byte1.order.mmrn = 2;
-	i.byte6.order.pwr = 1;
 	uint8 command = MASSAGE_EXPERIENCE_FATIGUE_RECOVERY_NORMAL_ON;
 #ifdef SONGYAN_A8L
 	arg->send_data(arg, &command, 1);
 #else
 #ifdef SONGYAN_A8A
+	struct a8a_order_package_send i;
+	os_memset(&i,0, sizeof(struct a8a_order_package_send));
+	i.byte1.order.mmrn = 2;
+	i.byte6.order.pwr = 1;
 	arg->send_data(arg, (char*)&i, sizeof(struct a8a_order_package_send));
 #endif
 #endif
@@ -658,15 +658,15 @@ bool ICACHE_FLASH_ATTR
 fatigue_mode_off(CLASS(massage_protocol) *arg)
 {
 	assert(arg != NULL);
-	struct a8a_order_package_send i;
-	os_memset(&i,0, sizeof(struct a8a_order_package_send));
-	i.byte1.order.mmrn = 2;
-	i.byte6.order.pwr = 1;
 	uint8 command = MASSAGE_EXPERIENCE_OFF;
 #ifdef SONGYAN_A8L
 	arg->send_data(arg, &command, 1);
 #else
 #ifdef SONGYAN_A8A
+	struct a8a_order_package_send i;
+	os_memset(&i,0, sizeof(struct a8a_order_package_send));
+	i.byte1.order.mmrn = 2;
+	i.byte6.order.pwr = 1;
 	arg->send_data(arg, (char*)&i, sizeof(struct a8a_order_package_send));
 #endif
 #endif
@@ -687,15 +687,15 @@ bool ICACHE_FLASH_ATTR
 power_on(CLASS(massage_protocol) *arg)
 {
 	assert(arg != NULL);
-	struct a8a_order_package_send i;
-	os_memset(&i,0, sizeof(struct a8a_order_package_send));
-	i.byte1.order.mmrn = 2;
-	i.byte6.order.pwr = 1;
 	uint8 command = MASSAGE_POWER_ON;
 #ifdef SONGYAN_A8L
 	arg->send_data(arg, &command, 1);
 #else
 #ifdef SONGYAN_A8A
+	struct a8a_order_package_send i;
+	os_memset(&i,0, sizeof(struct a8a_order_package_send));
+	i.byte1.order.mmrn = 2;
+	i.byte6.order.pwr = 1;
 	arg->send_data(arg, (char*)&i, sizeof(struct a8a_order_package_send));
 #endif
 #endif
@@ -715,14 +715,14 @@ power_off(CLASS(massage_protocol) *arg)
 {
 	assert(arg != NULL);
 	struct a8a_order_package_send i;
-	os_memset(&i,0, sizeof(struct a8a_order_package_send));
-	i.byte1.order.mmrn = 1;
-	i.byte6.order.pwr = 0;
 	uint8 command = MASSAGE_POWER_OFF;
 #ifdef SONGYAN_A8L
 		arg->send_data(arg, &command, 1);
 #else
 #ifdef SONGYAN_A8A
+		os_memset(&i,0, sizeof(struct a8a_order_package_send));
+		i.byte1.order.mmrn = 1;
+		i.byte6.order.pwr = 0;
 		arg->send_data(arg, (char*)&i, sizeof(struct a8a_order_package_send));
 #endif
 #endif
@@ -742,21 +742,79 @@ bool ICACHE_FLASH_ATTR
 send_heart_rate_level(CLASS(massage_protocol) *arg, uint8 heartrate_level)
 {
 	assert(arg != NULL);
-	struct a8a_order_package_send i;
-	os_memset(&i,0, sizeof(struct a8a_order_package_send));
-	i.byte1.order.mmrn = 1;
-	i.byte6.order.pwr = 0;
+
 	uint8 command = heartrate_level;
 #ifdef SONGYAN_A8L
 		arg->send_data(arg, &command, 1);
 #else
 #ifdef SONGYAN_A8A
+		struct a8a_order_package_send i;
+		os_memset(&i,0, sizeof(struct a8a_order_package_send));
+		i.byte1.order.mmrn = 1;
+		i.byte6.order.pwr = 0;
 		arg->send_data(arg, (char*)&i, sizeof(struct a8a_order_package_send));
 #endif
 #endif
 	return TRUE;
 }
 #endif
+
+/******************************************************************************
+ * FunctionName : enable_audio_interaction
+ * Description  : enbale massage chair audio interaction function
+ * Parameters   : arg -- object pointer
+ * Returns      : true : sucess false: failed
+*******************************************************************************/
+#if 1
+LOCAL bool ICACHE_FLASH_ATTR
+enable_audio_interaction(CLASS(massage_protocol) *arg)
+{
+   	assert(arg != NULL);
+	uint8 command = MASSAGE_AUDIO_INTERACTION_ON;
+#ifdef SONGYAN_A8L
+		arg->send_data(arg, &command, 1);
+#else
+#ifdef SONGYAN_A8A
+		struct a8a_order_package_send i;
+		os_memset(&i,0, sizeof(struct a8a_order_package_send));
+		i.byte1.order.mmrn = 1;
+		i.byte6.order.pwr = 0;
+		arg->send_data(arg, (char*)&i, sizeof(struct a8a_order_package_send));
+#endif
+#endif
+	return TRUE;
+
+}
+#endif
+
+/******************************************************************************
+ * FunctionName : disable_audio_interaction
+ * Description  : disbale massage chair audio interaction function
+ * Parameters   : arg -- object pointer
+ * Returns      : true : sucess false: failed
+*******************************************************************************/
+#if 1
+LOCAL bool ICACHE_FLASH_ATTR
+disable_audio_interaction(CLASS(massage_protocol) *arg)
+{
+   	assert(arg != NULL);
+	uint8 command = MASSAGE_AUDIO_INTERACTION_OFF;
+#ifdef SONGYAN_A8L
+		arg->send_data(arg, &command, 1);
+#else
+#ifdef SONGYAN_A8A
+		struct a8a_order_package_send i;
+		os_memset(&i,0, sizeof(struct a8a_order_package_send));
+		i.byte1.order.mmrn = 1;
+		i.byte6.order.pwr = 0;
+		arg->send_data(arg, (char*)&i, sizeof(struct a8a_order_package_send));
+#endif
+#endif
+	return TRUE;
+
+}
+#endif
+
 
 
 /******************************************************************************
@@ -787,6 +845,7 @@ init_massage_protocol(CLASS(massage_protocol) *arg)
         arg->send_data = cling_data_send;
 
 		arg->send_heart_rate_level = send_heart_rate_level;
+		
 		arg->fatigue_mode_on = fatigue_mode_on;
 		arg->fatigue_mode_off = fatigue_mode_off;
 		/*massage instruction communication method*/
@@ -796,6 +855,8 @@ init_massage_protocol(CLASS(massage_protocol) *arg)
         arg->enable_recieving = enable_recieving;
         arg->disable_recieving = disable_recieving;
 		
+	 	arg->enable_audio_interaction = enable_audio_interaction;
+		arg->disable_audio_interaction = disable_audio_interaction;
         //uart_init(BIT_RATE_115200, BIT_RATE_115200);
 
         set_massage_recieved_cmd_call_back(cling_cmd_rev_callback);
@@ -821,7 +882,6 @@ init_massage_protocol(CLASS(massage_protocol) *arg)
 
  * Returns      : none
 *******************************************************************************/
-
 #if 1
 LOCAL bool ICACHE_FLASH_ATTR
 enable_recieving(CLASS(massage_protocol) *arg)
@@ -856,7 +916,6 @@ disable_recieving(CLASS(massage_protocol) *arg)
 
 }
 #endif
-
 
 /******************************************************************************
  * FunctionName : delete_uart

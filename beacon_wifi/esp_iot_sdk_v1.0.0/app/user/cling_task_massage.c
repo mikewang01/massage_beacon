@@ -1,23 +1,21 @@
-/***********************************************************************************
- * 文 件 名   : cling_task_massage.c
- * 负 责 人   : mike
- * 创建日期   : 2015年8月6日
- * 文件描述   : 
- * 版权说明   : Copyright (c) 2008-2015   xx xx xx xx 技术有限公司
- * 其    他   : 
- * 修改日志   : 
-***********************************************************************************/
+/********************************************************************************
 
-/******************************************************************************
- * Copyright 2013-2014 Espressif Systems (Wuxi)
- *
- * FileName: cling_task_massage.c
- *
- * Description: Thecling tastk massage mode calcultator and resiponsible for communication wirth massage chair.
- *              Check your hardware connection with the host while use this mode.
- * Modification history:
- *     2015/8/5, v1.0 create this file.
-*******************************************************************************/
+ **** Copyright (C), 2015, xx xx xx xx info&tech Co., Ltd.                ****
+
+ ********************************************************************************
+ * File Name     : cling_task_massage.c
+ * Author        : mikewang
+ * Date          : 2015-08-17
+ * Description   : .C file function description
+ * Version       : 1.0
+ * Function List :
+ * 
+ * Record        :
+ * 1.Date        : 2015-08-17
+ *   Author      : mikewang
+ *   Modification: Created file
+
+*************************************************************************************************************/
 #include "ets_sys.h"
 #include "os_type.h"
 #include "osapi.h"
@@ -28,8 +26,6 @@
 #include "time_sync_json.h"
 #include "sys_timestamp_mgr.h"
 #include "cling_upload_json.h"
-
-
 #include "user_iot_version.h"
 #include "espconn.h"
 #include "user_json.h"
@@ -37,7 +33,6 @@
 #include "user_webclient.h"
 #include "user_json.h"
 #include "driver/uart.h"
-
 #include "protocol/protocol_cmd.h"
 #include "cling_fifo.h"
 #include "cling_ap_para.h"
@@ -48,7 +43,6 @@
 #include "cling_rtc.h"
 #include "ble_fota.h"
 #include "protocol/massage_cmd.h"
-
 /*********************************************************************
 * MACROS
 */
@@ -70,17 +64,11 @@
 /*********************************************************************
 * LOCAL VARIABLES
 */
-
-
 LOCAL CLASS(massage_protocol) *massage_obj;
 LOCAL os_event_t *message_queue;
-
-
 /*********************************************************************
 * LOCAL FUNCRTION
 */
-
-
 
 /******************************************************************************
  * FunctionName : user_task_data_process
@@ -112,6 +100,10 @@ ipc_event_process(os_event_t *e)
 	case EVENT_CLING_HEALTH_RECIEVED:{
 			struct cling_health_rev *pbuffer = (struct cling_health_rev *)e->par;
 			CLING_DEBUG("heart rate = %d\r\n", pbuffer->heart_rate);
+			/*hear rate is higher than normal*/  
+			if(pbuffer->heart_rate > 80){
+				CLING_DEBUG("heart rate is higner than normal\r\n");
+			}
     		massage_obj->power_on(massage_obj);
 			os_free(pbuffer);
 	}
@@ -204,8 +196,6 @@ uart_event_process(os_event_t *e)
  * Parameters   : port -- server port
  * Returns      : none
 *******************************************************************************/
-
-
 LOCAL void ICACHE_FLASH_ATTR
 cling_misc_task_data_process(os_event_t *e)
 {
@@ -236,8 +226,6 @@ cling_misc_task_data_process(os_event_t *e)
  * Parameters   : port -- server port
  * Returns      : none
 *******************************************************************************/
-
-
 void ICACHE_FLASH_ATTR
 cling_task_massage_process_init(void)
 {
